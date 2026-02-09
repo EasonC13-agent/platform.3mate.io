@@ -1,0 +1,135 @@
+// Prisma schema for LLM Service with Tunnel Payment
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User account (linked to Firebase Auth)
+model User {
+  id            String   @id // Firebase UID
+  email         String   @unique
+  displayName   String?  @map("display_name")
+  photoURL      String?  @map("photo_url")
+  suiAddress    String?  @unique @map("sui_address")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  apiKeys       ApiKey[]
+  tunnels       Tunnel[]
+  usageLogs     UsageLog[]
+
+  @@map("users")
+}
+
+// API Key (derived from Sui keypair)
+model ApiKey {
+  id            String   @id @default(cuid())
+  userId        String   @map("user_id")
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Public key for signature verification (base64)
+  publicKey     String   @map("public_key")
+  // Last 6 chars of private key for display hint
+  keyHint       String   @map("key_hint") @db.VarChar(6)
+  // Key name/label
+  name          String   @default("Default Key")
+  
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  lastUsedAt    DateTime? @map("last_used_at")
+
+  usageLogs     UsageLog[]
+
+  @@unique([userId, publicKey])
+  @@map("api_keys")
+}
+
+// Tunnel state (mirrors on-chain Tunnel)
+model Tunnel {
+  id                String   @id @default(cuid())
+  
+  // On-chain tunnel ID
+  tunnelObjectId    String   @unique @map("tunnel_object_id")
+  
+  userId            String   @map("user_id")
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Deposit info
+  totalDeposit      BigInt   @map("total_deposit") // in USDC smallest unit (6 decimals)
+  claimedAmount     BigInt   @default(0) @map("claimed_amount")
+  
+  // Off-chain tracking
+  pendingAmount     BigInt   @default(0) @map("pending_amount") // not yet claimed on-chain
+  
+  // State
+  status            TunnelStatus @default(ACTIVE)
+  
+  // Latest signed receipt (for claim)
+  latestNonce       BigInt   @default(0) @map("latest_nonce")
+  latestSignature   String?  @map("latest_signature") // user's signature
+  
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  closedAt          DateTime? @map("closed_at")
+
+  @@map("tunnels")
+}
+
+enum TunnelStatus {
+  ACTIVE
+  CLOSING     // Close initiated, in grace period
+  CLOSED
+}
+
+// Usage log for each API call
+model UsageLog {
+  id            String   @id @default(cuid())
+  
+  userId        String   @map("user_id")
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  apiKeyId      String   @map("api_key_id")
+  apiKey        ApiKey   @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
+  
+  // Request info
+  model         String   // e.g., "claude-sonnet-4-20250514"
+  inputTokens   Int      @map("input_tokens")
+  outputTokens  Int      @map("output_tokens")
+  
+  // Cost
+  costUsdc      BigInt   @map("cost_usdc") // in smallest unit
+  
+  // Timing
+  latencyMs     Int      @map("latency_ms")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([userId, createdAt])
+  @@index([apiKeyId, createdAt])
+  @@map("usage_logs")
+}
+
+// Pricing config (for flexibility)
+model PricingConfig {
+  id            String   @id @default(cuid())
+  
+  model         String   @unique // e.g., "claude-sonnet-4-20250514" or "default"
+  
+  // Per-request flat fee (in USDC smallest unit, 6 decimals)
+  // 0.1 USDC = 100000
+  flatFeeUsdc   BigInt   @map("flat_fee_usdc")
+  
+  // Or per-token pricing (future)
+  inputTokenPrice   BigInt?  @map("input_token_price")
+  outputTokenPrice  BigInt?  @map("output_token_price")
+  
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@map("pricing_configs")
+}

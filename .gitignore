@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.env
+.env.local
+*.log
+.DS_Store
+
+# Firebase service account (sensitive!)
+firebase-service-account.json
+*-service-account.json
+
+# Build output
+public/assets/
+web/node_modules/
