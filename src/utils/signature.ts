@@ -1,7 +1,7 @@
 import nacl from 'tweetnacl';
 import { bech32 } from '@scure/base';
 
-const MATEAPIKEY_PREFIX = '3mate';
+const MATEAPIKEY_PREFIX = 'sk-3mate-apikey';
 const SUIPRIVKEY_PREFIX = 'suiprivkey';
 
 /**
