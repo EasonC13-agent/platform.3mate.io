@@ -649,3 +649,53 @@ fun test_mint_usdc() {
 
     ts::end(scenario);
 }
+
+// ============================================================================
+// Real claim() with invalid signature (covers claim + construct_claim_message)
+// ============================================================================
+
+#[test, expected_failure(abort_code = tunnel::E_INVALID_SIGNATURE)]
+fun test_claim_invalid_signature() {
+    let mut scenario = ts::begin(ADMIN);
+    setup_config(&mut scenario);
+    setup_test_usdc(&mut scenario);
+    mint_test_usdc(&mut scenario, 100_000_000, PAYER);
+    open_tunnel_helper(&mut scenario);
+
+    // Operator calls real claim with a bogus signature
+    ts::next_tx(&mut scenario, OPERATOR);
+    let mut tunnel = ts::take_shared<Tunnel<TEST_USDC>>(&scenario);
+    // 64-byte fake signature
+    let fake_sig = vector[
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    ];
+    tunnel::claim(&mut tunnel, 10_000_000, fake_sig, ts::ctx(&mut scenario));
+    ts::return_shared(tunnel);
+
+    ts::end(scenario);
+}
+
+// ============================================================================
+// construct_claim_message test
+// ============================================================================
+
+#[test]
+fun test_construct_claim_message() {
+    let mut scenario = ts::begin(ADMIN);
+    setup_config(&mut scenario);
+    setup_test_usdc(&mut scenario);
+    mint_test_usdc(&mut scenario, 100_000_000, PAYER);
+    open_tunnel_helper(&mut scenario);
+
+    ts::next_tx(&mut scenario, PAYER);
+    let tunnel = ts::take_shared<Tunnel<TEST_USDC>>(&scenario);
+    let msg = tunnel::construct_claim_message_for_testing(&tunnel, 10_000_000, 1);
+    // Message should be: 32 bytes tunnel_id + 8 bytes amount + 8 bytes nonce = 48 bytes
+    assert!(vector::length(&msg) == 48);
+    ts::return_shared(tunnel);
+
+    ts::end(scenario);
+}

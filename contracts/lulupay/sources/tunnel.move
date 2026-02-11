@@ -8,6 +8,7 @@ use sui::clock::Clock;
 
 // ======== Error codes ========
 const E_INVALID_SIGNATURE: u64 = 1;
+#[allow(unused_const)]
 const E_INVALID_NONCE: u64 = 2;
 const E_INSUFFICIENT_BALANCE: u64 = 3;
 const E_NOT_PAYER: u64 = 4;
@@ -28,6 +29,7 @@ public struct CreatorConfig has key {
     grace_period_ms: u64,
 }
 
+#[allow(lint(coin_field))]
 public struct Tunnel<phantom T> has key {
     id: UID,
     payer: address,
@@ -78,6 +80,7 @@ public struct CloseInitiated has copy, drop {
 
 // ======== Functions ========
 
+#[allow(lint(public_entry))]
 public entry fun create_creator_config(
     operator: address,
     operator_public_key: vector<u8>,
@@ -100,6 +103,7 @@ public entry fun create_creator_config(
 }
 
 /// User deposits coin to open a tunnel
+#[allow(lint(public_entry))]
 public entry fun open_tunnel<T>(
     config: &CreatorConfig,
     deposit: Coin<T>,
@@ -130,11 +134,12 @@ public entry fun open_tunnel<T>(
     transfer::share_object(tunnel);
 }
 
-/// Operator claims funds with payer's signature on (tunnel_id || cumulative_amount || nonce)
-public entry fun claim<T>(
+// ======== Internal claim logic ========
+
+/// Shared claim logic: validates, transfers, updates state
+fun claim_internal<T>(
     tunnel: &mut Tunnel<T>,
     cumulative_amount: u64,
-    signature: vector<u8>,
     ctx: &mut TxContext,
 ) {
     assert!(!tunnel.closing, E_TUNNEL_CLOSING);
@@ -142,22 +147,9 @@ public entry fun claim<T>(
     assert!(cumulative_amount > tunnel.cumulative_claimed, E_CLAIM_AMOUNT_TOO_LOW);
 
     let expected_nonce = tunnel.nonce + 1;
-
-    // Build message: tunnel_id_bytes || bcs(cumulative_amount) || bcs(nonce)
-    let mut msg = object::id_bytes(tunnel);
-    msg.append(bcs::to_bytes(&cumulative_amount));
-    msg.append(bcs::to_bytes(&expected_nonce));
-
-    // Verify payer's signature
-    assert!(
-        ed25519::ed25519_verify(&signature, &tunnel.payer_public_key, &msg),
-        E_INVALID_SIGNATURE,
-    );
-
     let claim_amount = cumulative_amount - tunnel.cumulative_claimed;
     assert!(coin::value(&tunnel.balance) >= claim_amount, E_INSUFFICIENT_BALANCE);
 
-    // Transfer claimed amount to operator
     let claimed_coin = coin::split(&mut tunnel.balance, claim_amount, ctx);
     transfer::public_transfer(claimed_coin, tunnel.operator);
 
@@ -172,7 +164,36 @@ public entry fun claim<T>(
     });
 }
 
+/// Construct the claim message: tunnel_id_bytes || bcs(cumulative_amount) || bcs(nonce)
+fun construct_claim_message<T>(tunnel: &Tunnel<T>, cumulative_amount: u64, nonce: u64): vector<u8> {
+    let mut msg = object::id_bytes(tunnel);
+    msg.append(bcs::to_bytes(&cumulative_amount));
+    msg.append(bcs::to_bytes(&nonce));
+    msg
+}
+
+/// Operator claims funds with payer's signature on (tunnel_id || cumulative_amount || nonce)
+#[allow(lint(public_entry))]
+public entry fun claim<T>(
+    tunnel: &mut Tunnel<T>,
+    cumulative_amount: u64,
+    signature: vector<u8>,
+    ctx: &mut TxContext,
+) {
+    let expected_nonce = tunnel.nonce + 1;
+    let msg = construct_claim_message(tunnel, cumulative_amount, expected_nonce);
+
+    // Verify payer's signature
+    assert!(
+        ed25519::ed25519_verify(&signature, &tunnel.payer_public_key, &msg),
+        E_INVALID_SIGNATURE,
+    );
+
+    claim_internal(tunnel, cumulative_amount, ctx);
+}
+
 /// Close tunnel after at least one claim, refund remaining to payer
+#[allow(lint(public_entry))]
 public entry fun close_with_receipt<T>(
     tunnel: Tunnel<T>,
     ctx: &mut TxContext,
@@ -222,6 +243,7 @@ public fun claimed_amount<T>(tunnel: &Tunnel<T>): u64 { tunnel.cumulative_claime
 public fun remaining_balance<T>(tunnel: &Tunnel<T>): u64 { coin::value(&tunnel.balance) }
 
 /// Payer initiates close with grace period
+#[allow(lint(public_entry))]
 public entry fun init_close<T>(
     tunnel: &mut Tunnel<T>,
     clock: &Clock,
@@ -250,29 +272,21 @@ public fun claim_for_testing<T>(
     cumulative_amount: u64,
     ctx: &mut TxContext,
 ) {
-    assert!(!tunnel.closing, E_TUNNEL_CLOSING);
-    assert!(tx_context::sender(ctx) == tunnel.operator, E_NOT_OPERATOR);
-    assert!(cumulative_amount > tunnel.cumulative_claimed, E_CLAIM_AMOUNT_TOO_LOW);
+    claim_internal(tunnel, cumulative_amount, ctx);
+}
 
-    let expected_nonce = tunnel.nonce + 1;
-    let claim_amount = cumulative_amount - tunnel.cumulative_claimed;
-    assert!(coin::value(&tunnel.balance) >= claim_amount, E_INSUFFICIENT_BALANCE);
-
-    let claimed_coin = coin::split(&mut tunnel.balance, claim_amount, ctx);
-    transfer::public_transfer(claimed_coin, tunnel.operator);
-
-    tunnel.cumulative_claimed = cumulative_amount;
-    tunnel.nonce = expected_nonce;
-
-    event::emit(Claimed {
-        tunnel_id: object::id(tunnel),
-        claim_amount,
-        cumulative_claimed: cumulative_amount,
-        nonce: expected_nonce,
-    });
+#[test_only]
+/// Expose construct_claim_message for testing
+public fun construct_claim_message_for_testing<T>(
+    tunnel: &Tunnel<T>,
+    cumulative_amount: u64,
+    nonce: u64,
+): vector<u8> {
+    construct_claim_message(tunnel, cumulative_amount, nonce)
 }
 
 /// Finalize close after grace period
+#[allow(lint(public_entry))]
 public entry fun finalize_close<T>(
     tunnel: Tunnel<T>,
     clock: &Clock,
