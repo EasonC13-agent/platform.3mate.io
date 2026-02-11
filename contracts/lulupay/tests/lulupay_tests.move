@@ -4,6 +4,7 @@ module lulupay::lulupay_tests;
 use sui::test_scenario::{Self as ts, Scenario};
 use sui::coin::{Self, Coin};
 use sui::clock;
+use sui::object;
 use lulupay::tunnel::{Self, CreatorConfig, Tunnel};
 use lulupay::test_usdc::{Self, TEST_USDC, TEST_USDC_Manager};
 
@@ -13,9 +14,12 @@ const OPERATOR: address = @0xBEEF;
 const PAYER: address = @0xCAFE;
 const RANDOM: address = @0xDEAD;
 
-// Dummy 32-byte public keys
+// Dummy 32-byte operator public key
 const PUBKEY: vector<u8> = x"0000000000000000000000000000000000000000000000000000000000000001";
+// Dummy payer public key (for claim_for_testing tests)
 const PAYER_PUBKEY: vector<u8> = x"0000000000000000000000000000000000000000000000000000000000000002";
+// Real Ed25519 payer public key (seed=0x42, for real claim() tests)
+const REAL_PAYER_PUBKEY: vector<u8> = x"7374d29e898c1cc248984abfbdcbdcda591442373f5a7c48df48ab0258db2348";
 
 // ======== Helper functions ========
 
@@ -47,6 +51,14 @@ fun open_tunnel_helper(scenario: &mut Scenario) {
     let config = ts::take_shared<CreatorConfig>(scenario);
     let deposit = ts::take_from_sender<Coin<TEST_USDC>>(scenario);
     tunnel::open_tunnel(&config, deposit, PAYER_PUBKEY, ts::ctx(scenario));
+    ts::return_shared(config);
+}
+
+fun open_tunnel_real_pubkey(scenario: &mut Scenario) {
+    ts::next_tx(scenario, PAYER);
+    let config = ts::take_shared<CreatorConfig>(scenario);
+    let deposit = ts::take_from_sender<Coin<TEST_USDC>>(scenario);
+    tunnel::open_tunnel(&config, deposit, REAL_PAYER_PUBKEY, ts::ctx(scenario));
     ts::return_shared(config);
 }
 
@@ -118,6 +130,38 @@ fun test_open_tunnel_zero_deposit() {
 }
 
 // ======== claim Tests (using test helper) ========
+
+// ======== Real Ed25519 claim() test ========
+// Tunnel ID is deterministic: 0x1611edd9a9d42dbcd9ae773ffa22be0f6017b00590959dd5c767e4efcd34cd0b
+// Pre-computed Ed25519 signature for: tunnel_id || bcs(500000u64) || bcs(1u64)
+// Signed with payer seed=0x42, pubkey=REAL_PAYER_PUBKEY
+const CLAIM_SIGNATURE: vector<u8> = x"4159d4e0e8f8bef2960590f44cf7fa9325a52a20c26ae6ad0a4f28a88a42a76fdaa3e2724b9f56d20dee1b7d9716dd3822824804348207519b89e003e6ae7b03";
+
+#[test]
+fun test_claim_real_ed25519() {
+    let mut scenario = ts::begin(ADMIN);
+    setup_config(&mut scenario);
+    setup_test_usdc(&mut scenario);
+    mint_test_usdc(&mut scenario, 1000000, PAYER);
+    open_tunnel_real_pubkey(&mut scenario);
+
+    ts::next_tx(&mut scenario, OPERATOR);
+    let mut tunnel = ts::take_shared<Tunnel<TEST_USDC>>(&scenario);
+
+    // Verify tunnel ID matches what we pre-computed
+    let id_bytes = object::id_bytes(&tunnel);
+    assert!(id_bytes == x"1611edd9a9d42dbcd9ae773ffa22be0f6017b00590959dd5c767e4efcd34cd0b");
+
+    // Call real claim() with pre-computed signature
+    tunnel::claim<TEST_USDC>(
+        &mut tunnel,
+        500000,
+        CLAIM_SIGNATURE,
+        ts::ctx(&mut scenario),
+    );
+    ts::return_shared(tunnel);
+    ts::end(scenario);
+}
 
 #[test]
 fun test_claim_valid() {
@@ -697,5 +741,51 @@ fun test_construct_claim_message() {
     assert!(vector::length(&msg) == 48);
     ts::return_shared(tunnel);
 
+    ts::end(scenario);
+}
+
+// ============================================================================
+// Getter function tests
+// ============================================================================
+
+#[test]
+fun test_getters() {
+    let mut scenario = ts::begin(ADMIN);
+    setup_config(&mut scenario);
+    setup_test_usdc(&mut scenario);
+    mint_test_usdc(&mut scenario, 1000000, PAYER);
+    open_tunnel_helper(&mut scenario);
+
+    ts::next_tx(&mut scenario, OPERATOR);
+    let tunnel = ts::take_shared<Tunnel<TEST_USDC>>(&scenario);
+
+    // Test all getter functions
+    let _id = tunnel::tunnel_id(&tunnel);
+    assert!(tunnel::payer(&tunnel) == PAYER);
+    assert!(tunnel::is_closed(&tunnel) == false);
+    assert!(tunnel::total_deposit(&tunnel) == 1000000);
+    assert!(tunnel::claimed_amount(&tunnel) == 0);
+    assert!(tunnel::remaining_balance(&tunnel) == 1000000);
+
+    ts::return_shared(tunnel);
+    ts::end(scenario);
+}
+
+#[test]
+fun test_getters_after_claim() {
+    let mut scenario = ts::begin(ADMIN);
+    setup_config(&mut scenario);
+    setup_test_usdc(&mut scenario);
+    mint_test_usdc(&mut scenario, 1000000, PAYER);
+    open_tunnel_helper(&mut scenario);
+
+    ts::next_tx(&mut scenario, OPERATOR);
+    let mut tunnel = ts::take_shared<Tunnel<TEST_USDC>>(&scenario);
+    tunnel::claim_for_testing(&mut tunnel, 300000, ts::ctx(&mut scenario));
+
+    assert!(tunnel::claimed_amount(&tunnel) == 300000);
+    assert!(tunnel::remaining_balance(&tunnel) == 700000);
+
+    ts::return_shared(tunnel);
     ts::end(scenario);
 }
