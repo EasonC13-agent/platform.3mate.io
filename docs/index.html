@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>3mate Platform - Documentation</title>
+  <title>LuLu AI - Documentation</title>
   <style>
     :root {
       --bg: #0a0a0f;
@@ -164,24 +164,24 @@
 
 <nav>
   <div class="inner">
-    <div class="logo"><span>3mate</span> Platform</div>
+    <div class="logo"><span>LuLu</span> AI</div>
     <div class="links">
-      <a href="#overview">Overview</a>
-      <a href="#quickstart">Quick Start</a>
-      <a href="#api">API</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#agent-skill">Agent Skill</a>
+      <a href="#mac-app">Mac App</a>
+      <a href="#3mate">3mate</a>
       <a href="#contracts">Contracts</a>
-      <a href="https://platform.3mate.io" target="_blank">Dashboard ↗</a>
     </div>
   </div>
 </nav>
 
 <div class="hero">
-  <h1>3mate Platform</h1>
-  <p>Pay-per-use LLM API access powered by Sui Tunnel micropayments. No subscriptions, no minimums. Just deposit and use.</p>
+  <h1>LuLu AI</h1>
+  <p>An AI-powered firewall companion for macOS. Intercepts LuLu Firewall alerts, explains network connections with AI, and lets you manage rules from anywhere.</p>
   <div class="badges">
-    <span class="badge green">● Sui Testnet</span>
-    <span class="badge yellow">⚡ Ed25519 Signed Channels</span>
-    <span class="badge">🔐 On-chain Settlement</span>
+    <span class="badge green">● Open Source</span>
+    <span class="badge yellow">⚡ Agent Skill + Mac App</span>
+    <span class="badge">🔐 3mate Platform (In Progress)</span>
   </div>
 </div>
 
@@ -190,93 +190,169 @@
   <div class="toc">
     <h3>Contents</h3>
     <ol>
-      <li><a href="#overview">Overview</a></li>
-      <li><a href="#how-it-works">How It Works</a></li>
-      <li><a href="#quickstart">Quick Start</a></li>
-      <li><a href="#api">API Reference</a></li>
+      <li><a href="#architecture">Architecture</a></li>
+      <li><a href="#agent-skill">Agent Skill (lulu-monitor)</a></li>
+      <li><a href="#mac-app">LuLu AI Companion (Mac App)</a></li>
+      <li><a href="#3mate">3mate Platform (In Progress)</a></li>
       <li><a href="#contracts">Smart Contracts</a></li>
-      <li><a href="#integration">Integration Guide</a></li>
+      <li><a href="#api">API Reference</a></li>
       <li><a href="#security">Security Model</a></li>
     </ol>
   </div>
 
-  <!-- Overview -->
-  <div class="section" id="overview">
-    <h2>Overview</h2>
-    <p>3mate Platform is a generic micropayment layer for API services, built on <a href="https://sui.io" target="_blank">Sui</a>. It uses a payment channel (Tunnel) pattern where users deposit funds on-chain and consume them off-chain via signed receipts, with on-chain settlement.</p>
+  <!-- Architecture -->
+  <div class="section" id="architecture">
+    <h2>Architecture</h2>
+    <p>LuLu AI consists of two independent components, plus an optional payment platform:</p>
 
+    <div class="diagram">
+┌─────────────────────────────────────────────────────────────────┐
+│  User's Mac                                                     │
+│                                                                 │
+│  ┌─────────────┐     ┌──────────────────┐                      │
+│  │   LuLu      │────▶│  lulu-monitor    │                      │
+│  │   Firewall   │     │  (Agent Skill)   │──────▶ AI Agent      │
+│  └─────────────┘     └──────────────────┘     (OpenClaw/etc.)   │
+│                        ▲ Independent!                            │
+│                        │ No 3mate dependency                     │
+│                                                                 │
+│  ┌─────────────────┐                                            │
+│  │  LuLu AI        │                                            │
+│  │  Companion      │───┬──▶ Anthropic API (direct)              │
+│  │  (Mac App)      │   │                                        │
+│  └─────────────────┘   └──▶ 3mate Platform (optional)           │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│  3mate Platform  ⚠️ IN PROGRESS                                 │
+│                                                                 │
+│  ┌───────────────┐     ┌───────────────┐     ┌───────────────┐ │
+│  │ Sui Tunnel    │     │ LLM Proxy     │     │ Anthropic     │ │
+│  │ (On-chain     │◀───▶│ Service       │────▶│ API           │ │
+│  │  Escrow)      │     │               │     │               │ │
+│  └───────────────┘     └───────────────┘     └───────────────┘ │
+└─────────────────────────────────────────────────────────────────┘</div>
+
+    <div class="card-grid">
+      <div class="card">
+        <div class="icon">🛡️</div>
+        <h4>Agent Skill: lulu-monitor</h4>
+        <p>Standalone. Monitors LuLu Firewall alerts, sends them to your AI agent for analysis. No payment layer needed.</p>
+      </div>
+      <div class="card">
+        <div class="icon">🖥️</div>
+        <h4>LuLu AI Companion</h4>
+        <p>Mac menu bar app. Shows AI explanations for firewall alerts. Can use Anthropic API directly or via 3mate Platform.</p>
+      </div>
+      <div class="card">
+        <div class="icon">💰</div>
+        <h4>3mate Platform (In Progress)</h4>
+        <p>Sui Tunnel-based micropayment proxy for LLM APIs. Deposit USDC, get API access. Pay per request, settle on-chain.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Agent Skill -->
+  <div class="section" id="agent-skill">
+    <h2>Agent Skill: lulu-monitor</h2>
+    <p>The lulu-monitor agent skill intercepts LuLu Firewall alert windows, extracts connection details (process, remote address, port), and forwards them to an AI agent for analysis and decision-making.</p>
+
+    <h3>How It Works</h3>
+    <ol>
+      <li>LuLu Firewall shows an alert window for a new outbound connection</li>
+      <li>lulu-monitor detects the alert via macOS accessibility APIs</li>
+      <li>Extracts process name, remote address, port, and other details</li>
+      <li>Sends the info to your AI agent (e.g., OpenClaw)</li>
+      <li>Agent decides to allow/block and responds</li>
+      <li>lulu-monitor clicks the appropriate button on the alert</li>
+    </ol>
+
+    <h3>Key Features</h3>
+    <ul>
+      <li>Fully standalone, no cloud dependency</li>
+      <li>Works with any AI agent that supports tool calls</li>
+      <li>Sends notifications (Telegram, Discord, etc.) for user oversight</li>
+      <li>Supports allow/block/allow-once/block-once actions</li>
+    </ul>
+
+    <div class="alert info">ℹ️ The Agent Skill is completely independent from 3mate Platform. It connects directly to LuLu Firewall on your Mac.</div>
+  </div>
+
+  <!-- Mac App -->
+  <div class="section" id="mac-app">
+    <h2>LuLu AI Companion (Mac App)</h2>
+    <p>A native macOS menu bar app that provides AI-powered explanations for LuLu Firewall alerts. Available on <a href="https://github.com/EasonC13-agent/LuLuAICompanion" target="_blank">GitHub</a>.</p>
+
+    <h3>Features</h3>
+    <ul>
+      <li>Menu bar icon with real-time alert monitoring</li>
+      <li>AI-generated explanations for each network connection</li>
+      <li>Risk assessment and recommendations</li>
+      <li>Setup wizard for easy configuration</li>
+    </ul>
+
+    <h3>API Key Options</h3>
+    <p>The app supports two API key sources:</p>
+    <ul>
+      <li><strong>Anthropic API key</strong> (<code>sk-ant-...</code>): Direct connection to Anthropic</li>
+      <li><strong>3mate Platform key</strong> (<code>sk-3mate-...</code>): Pay-per-use via Sui Tunnel (in progress)</li>
+    </ul>
+    <p>Uses <code>claude-haiku-4-5</code> for fast, cost-efficient responses.</p>
+  </div>
+
+  <!-- 3mate Platform -->
+  <div class="section" id="3mate">
+    <h2>3mate Platform</h2>
+    <div class="alert warn">⚠️ 3mate Platform is currently in progress. Smart contracts are deployed on Sui Testnet. The web dashboard is available at <a href="https://platform.3mate.io" target="_blank">platform.3mate.io</a> for testing.</div>
+
+    <p>3mate is a generic micropayment layer for API services, built on <a href="https://sui.io" target="_blank">Sui</a>. It uses a payment channel (Tunnel) pattern: deposit funds on-chain, consume off-chain via signed receipts, settle on-chain.</p>
+
+    <h3>How Tunnels Work</h3>
+    <div class="diagram">
+1. Deposit USDC into a Tunnel (on-chain)
+   └─ open_tunnel(config, coin, public_key)
+
+2. Generate API keys (off-chain + on-chain)
+   └─ add_authorized_key(tunnel, new_pubkey)
+
+3. Make API calls with your key (off-chain)
+   └─ POST /v1/messages  { x-api-key: sk-3mate-... }
+
+4. Operator claims accumulated usage (on-chain)
+   └─ claim(tunnel, cumulative_amount, signature)
+
+5. Close Tunnel, get refund of remaining (on-chain)
+   └─ initiate_close() → finalize_close() after grace period</div>
+
+    <h3>Key Features</h3>
     <div class="card-grid">
       <div class="card">
         <div class="icon">💰</div>
         <h4>Deposit Once, Use Many</h4>
-        <p>Open a Tunnel with USDC deposit. Each API call deducts from your balance off-chain. Settle on-chain when done.</p>
+        <p>Open a Tunnel with USDC. Each API call deducts from balance off-chain. Settle on-chain when done.</p>
       </div>
       <div class="card">
         <div class="icon">🔑</div>
         <h4>Multi-Key Support</h4>
         <p>One Tunnel, multiple API keys. Share a balance pool across services or team members.</p>
       </div>
-      <div class="card">
-        <div class="icon">⚡</div>
-        <h4>Instant API Access</h4>
-        <p>Anthropic-compatible endpoint. Swap your base URL and API key to start using Claude models immediately.</p>
-      </div>
-      <div class="card">
-        <div class="icon">🛡️</div>
-        <h4>Trustless Settlement</h4>
-        <p>Ed25519 signed state receipts. Operator claims on-chain with cryptographic proof. Payer can close with grace period.</p>
-      </div>
     </div>
-  </div>
-
-  <!-- How It Works -->
-  <div class="section" id="how-it-works">
-    <h2>How It Works</h2>
-
-    <div class="diagram">
-┌──────────────────────────────────────────────────────────────┐
-│  1. User deposits USDC into a Tunnel (on-chain)             │
-│     └─ open_tunnel(config, coin, public_key)                │
-├──────────────────────────────────────────────────────────────┤
-│  2. User generates API keys (off-chain + on-chain)          │
-│     └─ add_authorized_key(tunnel, new_pubkey)               │
-├──────────────────────────────────────────────────────────────┤
-│  3. API calls use key to sign requests (off-chain)          │
-│     └─ POST /v1/messages  { x-api-key: sk-3mate-... }      │
-├──────────────────────────────────────────────────────────────┤
-│  4. Operator claims accumulated usage (on-chain)            │
-│     └─ claim(tunnel, cumulative_amount, signature)          │
-├──────────────────────────────────────────────────────────────┤
-│  5. User closes Tunnel, gets refund of remaining (on-chain) │
-│     └─ initiate_close() → finalize_close() after grace      │
-└──────────────────────────────────────────────────────────────┘</div>
 
     <h3>State Receipt Signing</h3>
-    <p>Each API call updates the cumulative usage amount. The backend signs a state receipt using the API key's Ed25519 keypair:</p>
+    <p>Each API call updates the cumulative usage. The backend signs a state receipt with Ed25519:</p>
     <pre><code>message = tunnel_id_bytes || bcs::to_bytes(cumulative_amount) || bcs::to_bytes(nonce)
 signature = ed25519_sign(message, private_key)</code></pre>
-    <p>The operator can submit this signature on-chain to claim funds up to <code>cumulative_amount</code>. The contract verifies the signature against any authorized key in the Tunnel.</p>
-  </div>
+    <p>The operator submits this signature on-chain to claim funds. The contract verifies against any authorized key in the Tunnel.</p>
 
-  <!-- Quick Start -->
-  <div class="section" id="quickstart">
-    <h2>Quick Start</h2>
-
-    <h3>1. Connect Wallet</h3>
-    <p>Visit <a href="https://platform.3mate.io" target="_blank">platform.3mate.io</a> and connect your Sui wallet. Make sure you're on <strong>Testnet</strong>.</p>
-
-    <h3>2. Mint Test USDC</h3>
-    <p>Click "Mint TEST_USDC" on the dashboard to get free test tokens for development.</p>
-
-    <h3>3. Open a Tunnel</h3>
-    <p>Deposit USDC to create a payment Tunnel. This locks your funds in an on-chain escrow contract.</p>
-
-    <h3>4. Create an API Key</h3>
-    <p>Generate an API key from the dashboard. The key is shown <strong>once</strong>. Copy it immediately.</p>
-    <div class="alert warn">⚠️ API keys are displayed only once at creation. Store them securely. The platform only stores the public key and a hint.</div>
-
-    <h3>5. Make API Calls</h3>
-    <p>Use your API key with the Anthropic-compatible endpoint:</p>
+    <h3>Quick Start</h3>
+    <ol>
+      <li>Visit <a href="https://platform.3mate.io" target="_blank">platform.3mate.io</a> and connect your Sui wallet (Testnet)</li>
+      <li>Mint TEST_USDC (free test tokens)</li>
+      <li>Open a Tunnel with USDC deposit</li>
+      <li>Generate an API key (shown once, copy immediately)</li>
+      <li>Use the key with the Anthropic-compatible endpoint</li>
+    </ol>
     <pre><code>curl https://platform.3mate.io/v1/messages \
   -H "x-api-key: sk-3mate-..." \
   -H "content-type: application/json" \
@@ -412,16 +488,9 @@ Content-Type: application/json
   <!-- Integration Guide -->
   <div class="section" id="integration">
     <h2>Integration Guide</h2>
-    <p>Want to add Tunnel payments to your own service? Here's how.</p>
 
-    <h3>For API Consumers (Apps)</h3>
-    <p>If you're building an app that consumes LLM APIs (like <a href="https://github.com/EasonC13-agent/LuLuAICompanion" target="_blank">LuLuAI</a>), integration is simple:</p>
-
-    <ol>
-      <li>Get an API key from <a href="https://platform.3mate.io" target="_blank">platform.3mate.io</a></li>
-      <li>Replace your Anthropic base URL with <code>https://platform.3mate.io</code></li>
-      <li>Use your <code>sk-3mate-...</code> key in the <code>x-api-key</code> header</li>
-    </ol>
+    <h3>Using 3mate as API Consumer</h3>
+    <p>Drop-in replacement for Anthropic SDK. Just change the base URL and API key:</p>
 
     <div class="lang-label">Python</div>
     <pre><code>import anthropic
@@ -451,8 +520,8 @@ const message = await client.messages.create({
   messages: [{ role: 'user', content: 'Hello!' }]
 });</code></pre>
 
-    <h3>For Service Providers</h3>
-    <p>To offer your own API service with Tunnel payments:</p>
+    <h3>Adding Tunnel Payments to Your Service</h3>
+    <p>3mate's Tunnel contracts are generic. Any API service provider can integrate:</p>
     <ol>
       <li>Deploy a <code>CreatorConfig</code> on Sui with your operator key</li>
       <li>Run a backend that verifies API keys against on-chain Tunnel state</li>
@@ -490,7 +559,7 @@ const message = await client.messages.create({
 </div>
 
 <footer>
-  <p>3mate Platform &middot; Built on <a href="https://sui.io" target="_blank">Sui</a> &middot; <a href="https://github.com/EasonC13-agent/platform.3mate.io" target="_blank">GitHub</a></p>
+  <p>LuLu AI &middot; Built on <a href="https://sui.io" target="_blank">Sui</a> &middot; <a href="https://github.com/EasonC13-agent/platform.3mate.io" target="_blank">3mate Platform</a> &middot; <a href="https://github.com/EasonC13-agent/LuLuAICompanion" target="_blank">LuLu AI Companion</a></p>
 </footer>
 
 </body>
