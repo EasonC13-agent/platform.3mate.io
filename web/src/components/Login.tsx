@@ -43,7 +43,7 @@ export default function Login() {
       <div className="bg-gray-800 p-8 rounded-xl w-full max-w-md">
         <div className="text-center mb-8">
           <span className="text-4xl">🛡️</span>
-          <h1 className="text-2xl font-bold mt-2">LuLuAI Platform</h1>
+          <h1 className="text-2xl font-bold mt-2">3mate Platform</h1>
           <p className="text-gray-400 mt-1">
             {isRegister ? 'Create your account' : 'Sign in to your account'}
           </p>
