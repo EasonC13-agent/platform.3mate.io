@@ -37,11 +37,11 @@ router.post('/register', async (req: Request, res: Response) => {
       console.warn('[Tunnel] Could not verify on-chain tunnel:', err);
     }
 
-    // Find user
-    const user = await prisma.user.findUnique({ where: { suiAddress } });
+    // Find or create user
+    let user = await prisma.user.findUnique({ where: { suiAddress } });
     if (!user) {
-      return res.status(404).json({
-        error: { type: 'not_found', message: 'User not found. Register API key first.' },
+      user = await prisma.user.create({
+        data: { id: suiAddress, email: `${suiAddress.slice(0, 10)}@sui.wallet`, suiAddress },
       });
     }
 
