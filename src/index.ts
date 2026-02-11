@@ -9,6 +9,7 @@ import { tunnelRouter } from './routes/tunnel.js';
 import { apiKeyRouter } from './routes/apikey.js';
 import { dashboardRouter } from './routes/dashboard.js';
 import { authRouter } from './routes/auth.js';
+import { configRouter } from './routes/config.js';
 
 dotenv.config();
 
@@ -38,6 +39,8 @@ app.use('/api/balance', authRouter);       // Balance (same router)
 app.use('/api/tunnel', tunnelRouter);      // Tunnel management
 app.use('/api/keys', apiKeyRouter);        // API key management
 app.use('/api/dashboard', dashboardRouter); // Dashboard data
+app.use('/api/config', configRouter);        // Public contract config
+app.use('/api/config', configRouter);        // Public config (contract addresses, operator info)
 
 // SPA fallback - serve index.html for non-API routes
 app.get('*', (req, res, next) => {

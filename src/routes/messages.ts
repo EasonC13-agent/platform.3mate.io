@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import Anthropic from '@anthropic-ai/sdk';
 import { prisma } from '../index.js';
 import { getPublicKeyFromApiKey, getKeyHint, signMessage, constructClaimMessage } from '../utils/signature.js';
+import { getSuiClient } from '../utils/sui.js';
 
 const router = Router();
 
@@ -65,6 +66,31 @@ router.post('/', async (req: Request, res: Response) => {
         status: 'ACTIVE'
       }
     });
+
+    // 4b. Verify tunnel on-chain if it exists (sync balance)
+    if (tunnel) {
+      try {
+        const suiClient = getSuiClient();
+        const obj = await suiClient.getObject({
+          id: tunnel.tunnelObjectId,
+          options: { showContent: true },
+        });
+        if (obj.data?.content && 'fields' in obj.data.content) {
+          const fields = obj.data.content.fields as Record<string, any>;
+          const closing = fields.closing || false;
+          if (closing && tunnel.status === 'ACTIVE') {
+            await prisma.tunnel.update({
+              where: { id: tunnel.id },
+              data: { status: 'CLOSING' },
+            });
+            tunnel.status = 'CLOSING';
+          }
+        }
+      } catch (err) {
+        // Non-fatal: continue with DB data if on-chain check fails
+        console.warn('[Messages] On-chain tunnel verification failed:', err);
+      }
+    }
 
     // 5. Get pricing
     const pricing = await prisma.pricingConfig.findFirst({
