@@ -1,5 +1,4 @@
 import { Router, Request, Response } from 'express';
-import { Transaction } from '@mysten/sui/transactions';
 import { prisma } from '../index.js';
 import { getSuiClient, getContractConfig } from '../utils/sui.js';
 import { sponsorAndExecute } from '../utils/gasStation.js';
