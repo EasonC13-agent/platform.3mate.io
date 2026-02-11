@@ -97,16 +97,87 @@ router.post('/', async (req: Request, res: Response) => {
     }
     // Note: For hackathon demo, allow requests without tunnel (free tier)
 
-    // 7. Proxy request to Anthropic
+    // 7. Check analysis cache for LuLu-style requests
     const { model, messages, max_tokens, system, ...rest } = req.body;
-
-    const response = await anthropic.messages.create({
+    
+    let cachedResponse = null;
+    let cacheKey: { processPath: string; ipAddress: string; port: string } | null = null;
+    
+    // Try to extract process+IP from the messages for caching
+    if (messages?.length > 0) {
+      const lastMsg = messages[messages.length - 1]?.content || '';
+      const msgText = typeof lastMsg === 'string' ? lastMsg : JSON.stringify(lastMsg);
+      
+      // Match LuLu alert patterns: process path + IP address
+      const pathMatch = msgText.match(/(?:Process Path|path):\s*([\/\w.-]+)/i);
+      const ipMatch = msgText.match(/(?:ip address|ip):\s*([\d.]+)/i);
+      const portMatch = msgText.match(/(?:port\/protocol|port):\s*(\d+)/i);
+      
+      if (pathMatch && ipMatch) {
+        cacheKey = {
+          processPath: pathMatch[1],
+          ipAddress: ipMatch[1],
+          port: portMatch ? portMatch[1] : ''
+        };
+        
+        // Look up cache
+        try {
+          const cached = await prisma.analysisCache.findUnique({
+            where: {
+              processPath_ipAddress_port: cacheKey
+            }
+          });
+          
+          if (cached) {
+            cachedResponse = JSON.parse(cached.analysisJson);
+            // Increment hit count
+            await prisma.analysisCache.update({
+              where: { id: cached.id },
+              data: { hitCount: cached.hitCount + 1 }
+            });
+            console.log(`Cache HIT: ${cacheKey.processPath} -> ${cacheKey.ipAddress}:${cacheKey.port} (hits: ${cached.hitCount + 1})`);
+          }
+        } catch (e) {
+          // Cache miss or error, proceed normally
+        }
+      }
+    }
+    
+    // Use cache or call Anthropic
+    const response = cachedResponse || await anthropic.messages.create({
       model: model || 'claude-sonnet-4-20250514',
       messages,
       max_tokens: max_tokens || 1024,
       system,
       ...rest
     });
+    
+    // Save to cache if this was a fresh API call with a cache key
+    if (!cachedResponse && cacheKey) {
+      try {
+        const processName = cacheKey.processPath.split('/').pop() || '';
+        await prisma.analysisCache.upsert({
+          where: {
+            processPath_ipAddress_port: cacheKey
+          },
+          create: {
+            processName,
+            processPath: cacheKey.processPath,
+            ipAddress: cacheKey.ipAddress,
+            port: cacheKey.port,
+            analysisJson: JSON.stringify(response),
+            model: model || 'claude-sonnet-4-20250514'
+          },
+          update: {
+            analysisJson: JSON.stringify(response),
+            model: model || 'claude-sonnet-4-20250514'
+          }
+        });
+        console.log(`Cache STORE: ${cacheKey.processPath} -> ${cacheKey.ipAddress}:${cacheKey.port}`);
+      } catch (e) {
+        console.error('Cache store error:', e);
+      }
+    }
 
     const latencyMs = Date.now() - startTime;
     const inputTokens = response.usage?.input_tokens || 0;

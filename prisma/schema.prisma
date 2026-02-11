@@ -113,6 +113,30 @@ model UsageLog {
   @@map("usage_logs")
 }
 
+// Cache for LuLu AI analysis results (process + IP/DNS)
+model AnalysisCache {
+  id            String   @id @default(cuid())
+  
+  // Cache key: process + destination
+  processName   String   @map("process_name")
+  processPath   String   @map("process_path")
+  ipAddress     String   @map("ip_address")
+  port          String   @default("")
+  reverseDNS    String   @default("") @map("reverse_dns")
+  
+  // Cached response
+  analysisJson  String   @map("analysis_json") @db.Text
+  model         String   // model used for analysis
+  
+  // Stats
+  hitCount      Int      @default(0) @map("hit_count")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@unique([processPath, ipAddress, port])
+  @@index([processName, ipAddress])
+  @@map("analysis_cache")
+}
+
 // Pricing config (for flexibility)
 model PricingConfig {
   id            String   @id @default(cuid())
