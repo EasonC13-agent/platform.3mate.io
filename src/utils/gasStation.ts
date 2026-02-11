@@ -2,6 +2,7 @@ import { SuiClient } from '@mysten/sui/client';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { Transaction } from '@mysten/sui/transactions';
 import { fromHex, toHex } from '@mysten/sui/utils';
+import { getBackendKeypair, getSuiClient } from './sui.js';
 
 const MAX_RETRIES = 5;
 const RETRY_DELAYS = [0, 1000, 2000, 3000, 5000];
@@ -13,17 +14,20 @@ interface SponsorResponse {
 }
 
 /**
- * Build a transaction (onlyTransactionKind), sponsor via gas station,
+ * Build a transaction via callback, sponsor via gas station,
  * sign with backend keypair, and execute with both signatures.
  * Retries up to 5 times on gas station failure.
  */
 export async function sponsorAndExecute(
-  tx: Transaction,
-  keypair: Ed25519Keypair,
-  client: SuiClient,
+  buildFn: (tx: Transaction) => void,
 ): Promise<{ digest: string; success: boolean }> {
+  const keypair = getBackendKeypair();
+  const client = getSuiClient();
   const senderAddress = keypair.getPublicKey().toSuiAddress();
+
+  const tx = new Transaction();
   tx.setSender(senderAddress);
+  buildFn(tx);
 
   // Build with onlyTransactionKind for gas station
   const txBytes = await tx.build({ client, onlyTransactionKind: true });
@@ -34,7 +38,6 @@ export async function sponsorAndExecute(
 
   const network = process.env.SUI_NETWORK || 'testnet';
 
-  // Retry loop for gas station
   let sponsorResponse: SponsorResponse | null = null;
   let lastError = '';
 
@@ -77,10 +80,8 @@ export async function sponsorAndExecute(
 
   const { txBytesHex, sponsorSignature } = sponsorResponse;
 
-  // Sign with backend keypair
   const { signature: userSignature } = await keypair.signTransaction(fromHex(txBytesHex));
 
-  // Execute with both signatures
   const result = await client.executeTransactionBlock({
     transactionBlock: fromHex(txBytesHex),
     signature: [userSignature, sponsorSignature],

@@ -1,13 +1,13 @@
 import { Router, Request, Response } from 'express';
+import { Transaction } from '@mysten/sui/transactions';
 import { prisma } from '../index.js';
+import { getSuiClient, getContractConfig } from '../utils/sui.js';
 import { sponsorAndExecute } from '../utils/gasStation.js';
-import { getContractConfig, getSuiClient } from '../utils/sui.js';
 
 const router = Router();
 
 /**
  * POST /api/tunnel/register - Register a new tunnel after on-chain creation
- * Called by frontend after user creates tunnel via wallet
  */
 router.post('/register', async (req: Request, res: Response) => {
   try {
@@ -15,21 +15,42 @@ router.post('/register', async (req: Request, res: Response) => {
 
     if (!suiAddress || !tunnelObjectId || !totalDeposit) {
       return res.status(400).json({
-        error: { type: 'validation_error', message: 'Missing required fields' }
+        error: { type: 'validation_error', message: 'Missing required fields' },
       });
     }
 
+    // Verify tunnel exists on-chain
+    const suiClient = getSuiClient();
+    try {
+      const obj = await suiClient.getObject({
+        id: tunnelObjectId,
+        options: { showContent: true },
+      });
+      if (obj.data?.content && 'fields' in obj.data.content) {
+        const fields = obj.data.content.fields as Record<string, any>;
+        if (fields.payer !== suiAddress) {
+          return res.status(400).json({
+            error: { type: 'validation_error', message: 'Tunnel payer does not match suiAddress' },
+          });
+        }
+      }
+    } catch (err) {
+      console.warn('[Tunnel] Could not verify on-chain tunnel:', err);
+    }
+
     // Find user
-    let user = await prisma.user.findUnique({ where: { suiAddress } });
+    const user = await prisma.user.findUnique({ where: { suiAddress } });
     if (!user) {
-      user = await prisma.user.create({ data: { id: suiAddress, email: suiAddress, suiAddress } });
+      return res.status(404).json({
+        error: { type: 'not_found', message: 'User not found. Register API key first.' },
+      });
     }
 
     // Check if tunnel already exists
     const existing = await prisma.tunnel.findUnique({ where: { tunnelObjectId } });
     if (existing) {
       return res.status(400).json({
-        error: { type: 'validation_error', message: 'Tunnel already registered' }
+        error: { type: 'validation_error', message: 'Tunnel already registered' },
       });
     }
 
@@ -38,7 +59,7 @@ router.post('/register', async (req: Request, res: Response) => {
         userId: user.id,
         tunnelObjectId,
         totalDeposit: BigInt(totalDeposit),
-      }
+      },
     });
 
     res.json({
@@ -46,7 +67,7 @@ router.post('/register', async (req: Request, res: Response) => {
       tunnelObjectId: tunnel.tunnelObjectId,
       totalDeposit: tunnel.totalDeposit.toString(),
       status: tunnel.status,
-      message: 'Tunnel registered successfully'
+      message: 'Tunnel registered successfully',
     });
   } catch (error: any) {
     console.error('Register tunnel error:', error);
@@ -68,22 +89,21 @@ router.get('/status/:suiAddress', async (req: Request, res: Response) => {
 
     const tunnels = await prisma.tunnel.findMany({
       where: { userId: user.id },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
 
-    res.json({
-      suiAddress,
-      tunnels: tunnels.map(t => ({
-        id: t.id,
-        tunnelObjectId: t.tunnelObjectId,
-        totalDeposit: t.totalDeposit.toString(),
-        claimedAmount: t.claimedAmount.toString(),
-        pendingAmount: t.pendingAmount.toString(),
-        availableBalance: (t.totalDeposit - t.claimedAmount - t.pendingAmount).toString(),
-        status: t.status,
-        createdAt: t.createdAt,
-      }))
-    });
+    const tunnelsWithBalance = tunnels.map((t) => ({
+      id: t.id,
+      tunnelObjectId: t.tunnelObjectId,
+      totalDeposit: t.totalDeposit.toString(),
+      claimedAmount: t.claimedAmount.toString(),
+      pendingAmount: t.pendingAmount.toString(),
+      availableBalance: (t.totalDeposit - t.claimedAmount - t.pendingAmount).toString(),
+      status: t.status,
+      createdAt: t.createdAt,
+    }));
+
+    res.json({ suiAddress, tunnels: tunnelsWithBalance });
   } catch (error: any) {
     console.error('Get tunnel status error:', error);
     res.status(500).json({ error: { type: 'server_error', message: error.message } });
@@ -91,12 +111,68 @@ router.get('/status/:suiAddress', async (req: Request, res: Response) => {
 });
 
 /**
- * POST /api/tunnel/claim - Execute on-chain claim using gas station
- * 
- * This is called internally by the system when enough pending amount accumulates,
- * or can be triggered manually.
- * 
- * Body: { tunnelObjectId }
+ * GET /api/tunnel/balance/:suiAddress - Check user's tunnel balance on-chain
+ */
+router.get('/balance/:suiAddress', async (req: Request, res: Response) => {
+  try {
+    const { suiAddress } = req.params;
+    const suiClient = getSuiClient();
+
+    const user = await prisma.user.findUnique({ where: { suiAddress } });
+    if (!user) {
+      return res.status(404).json({ error: { type: 'not_found', message: 'User not found' } });
+    }
+
+    const dbTunnels = await prisma.tunnel.findMany({
+      where: { userId: user.id, status: 'ACTIVE' },
+    });
+
+    const tunnels = await Promise.all(
+      dbTunnels.map(async (t) => {
+        try {
+          const obj = await suiClient.getObject({
+            id: t.tunnelObjectId,
+            options: { showContent: true },
+          });
+          if (obj.data?.content && 'fields' in obj.data.content) {
+            const fields = obj.data.content.fields as Record<string, any>;
+            return {
+              tunnelObjectId: t.tunnelObjectId,
+              onChainBalance: fields.balance?.fields?.balance || '0',
+              cumulativeClaimed: fields.cumulative_claimed || '0',
+              nonce: fields.nonce || '0',
+              closing: fields.closing || false,
+              dbTotalDeposit: t.totalDeposit.toString(),
+              dbClaimedAmount: t.claimedAmount.toString(),
+              dbPendingAmount: t.pendingAmount.toString(),
+            };
+          }
+        } catch (err) {
+          console.warn(`[Tunnel] Failed to fetch on-chain data for ${t.tunnelObjectId}:`, err);
+        }
+        return {
+          tunnelObjectId: t.tunnelObjectId,
+          error: 'Could not fetch on-chain data',
+          dbTotalDeposit: t.totalDeposit.toString(),
+          dbClaimedAmount: t.claimedAmount.toString(),
+          dbPendingAmount: t.pendingAmount.toString(),
+        };
+      })
+    );
+
+    res.json({ suiAddress, tunnels });
+  } catch (error: any) {
+    console.error('Get tunnel balance error:', error);
+    res.status(500).json({ error: { type: 'server_error', message: error.message } });
+  }
+});
+
+/**
+ * POST /api/tunnel/claim - Execute on-chain claim
+ *
+ * Body: { tunnelObjectId: string }
+ *
+ * Uses stored payer signature; operator (backend) calls claim via gas station.
  */
 router.post('/claim', async (req: Request, res: Response) => {
   try {
@@ -109,43 +185,42 @@ router.post('/claim', async (req: Request, res: Response) => {
 
     if (!tunnel.latestSignature || tunnel.pendingAmount === BigInt(0)) {
       return res.status(400).json({
-        error: { type: 'validation_error', message: 'No pending amount to claim' }
+        error: { type: 'validation_error', message: 'No pending amount to claim' },
       });
     }
 
     const config = getContractConfig();
     const cumulativeAmount = tunnel.claimedAmount + tunnel.pendingAmount;
-    const nonce = tunnel.latestNonce;
-    const signature = Buffer.from(tunnel.latestSignature, 'base64');
+    const signatureBytes = Array.from(Buffer.from(tunnel.latestSignature, 'base64'));
 
-    // Execute claim on-chain via gas station
-    const result = await sponsorAndExecute((tx: any) => {
+    // Build and execute claim transaction via gas station
+    // Contract: claim<T>(tunnel: &mut Tunnel<T>, cumulative_amount: u64, signature: vector<u8>, ctx)
+    const result = await sponsorAndExecute((tx) => {
       tx.moveCall({
         target: `${config.packageId}::tunnel::claim`,
         typeArguments: [`${config.packageId}::test_usdc::TEST_USDC`],
         arguments: [
           tx.object(tunnelObjectId),
           tx.pure.u64(Number(cumulativeAmount)),
-          tx.pure.u64(Number(nonce)),
-          tx.pure(Array.from(signature)),
+          tx.pure.vector('u8', signatureBytes),
         ],
       });
     });
 
-    // Update DB: move pending to claimed
+    // Update DB on success
     await prisma.tunnel.update({
       where: { tunnelObjectId },
       data: {
         claimedAmount: cumulativeAmount,
         pendingAmount: BigInt(0),
-      }
+      },
     });
 
     res.json({
-      tunnelObjectId,
+      success: true,
       digest: result.digest,
+      tunnelObjectId,
       claimedAmount: cumulativeAmount.toString(),
-      message: 'Claim executed successfully'
     });
   } catch (error: any) {
     console.error('Claim error:', error);
@@ -154,18 +229,22 @@ router.post('/claim', async (req: Request, res: Response) => {
 });
 
 /**
- * POST /api/tunnel/close - Close tunnel and refund remaining to payer
- * 
- * Body: { tunnelObjectId }
+ * POST /api/tunnel/close - Operator closes tunnel with receipt
+ *
+ * Body: { tunnelObjectId: string }
  */
 router.post('/close', async (req: Request, res: Response) => {
   try {
     const { tunnelObjectId } = req.body;
 
+    const tunnel = await prisma.tunnel.findUnique({ where: { tunnelObjectId } });
+    if (!tunnel) {
+      return res.status(404).json({ error: { type: 'not_found', message: 'Tunnel not found' } });
+    }
+
     const config = getContractConfig();
 
-    // Execute close on-chain via gas station
-    const result = await sponsorAndExecute((tx: any) => {
+    const result = await sponsorAndExecute((tx) => {
       tx.moveCall({
         target: `${config.packageId}::tunnel::close_with_receipt`,
         typeArguments: [`${config.packageId}::test_usdc::TEST_USDC`],
@@ -173,47 +252,19 @@ router.post('/close', async (req: Request, res: Response) => {
       });
     });
 
-    // Update DB
     await prisma.tunnel.update({
       where: { tunnelObjectId },
-      data: { status: 'CLOSED' }
+      data: { status: 'CLOSED' },
     });
 
     res.json({
-      tunnelObjectId,
+      success: true,
       digest: result.digest,
-      status: 'CLOSED',
-      message: 'Tunnel closed successfully'
+      tunnelObjectId,
+      message: 'Tunnel closed. Remaining balance refunded to payer.',
     });
   } catch (error: any) {
     console.error('Close tunnel error:', error);
-    res.status(500).json({ error: { type: 'server_error', message: error.message } });
-  }
-});
-
-/**
- * GET /api/tunnel/onchain/:tunnelObjectId - Get on-chain tunnel state
- */
-router.get('/onchain/:tunnelObjectId', async (req: Request, res: Response) => {
-  try {
-    const { tunnelObjectId } = req.params;
-    const client = getSuiClient();
-
-    const obj = await client.getObject({
-      id: tunnelObjectId,
-      options: { showContent: true },
-    });
-
-    if (!obj.data?.content || !('fields' in obj.data.content)) {
-      return res.status(404).json({ error: { type: 'not_found', message: 'Tunnel not found on-chain' } });
-    }
-
-    res.json({
-      tunnelObjectId,
-      fields: obj.data.content.fields,
-    });
-  } catch (error: any) {
-    console.error('Get on-chain tunnel error:', error);
     res.status(500).json({ error: { type: 'server_error', message: error.message } });
   }
 });

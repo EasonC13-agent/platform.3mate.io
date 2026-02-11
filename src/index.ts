@@ -40,7 +40,6 @@ app.use('/api/tunnel', tunnelRouter);      // Tunnel management
 app.use('/api/keys', apiKeyRouter);        // API key management
 app.use('/api/dashboard', dashboardRouter); // Dashboard data
 app.use('/api/config', configRouter);        // Public contract config
-app.use('/api/config', configRouter);        // Public config (contract addresses, operator info)
 
 // SPA fallback - serve index.html for non-API routes
 app.get('*', (req, res, next) => {
