@@ -694,6 +694,128 @@ fun test_mint_usdc() {
     ts::end(scenario);
 }
 
+// ======== add/remove authorized key Tests ========
+
+const EXTRA_KEY: vector<u8> = x"0000000000000000000000000000000000000000000000000000000000000099";
+const EXTRA_KEY_2: vector<u8> = x"0000000000000000000000000000000000000000000000000000000000000088";
+
+#[test]
+fun test_add_authorized_key() {
+    let mut scenario = ts::begin(ADMIN);
+    setup_config(&mut scenario);
+    setup_test_usdc(&mut scenario);
+    mint_test_usdc(&mut scenario, 1000000, PAYER);
+    open_tunnel_helper(&mut scenario);
+
+    ts::next_tx(&mut scenario, PAYER);
+    let mut tunnel = ts::take_shared<Tunnel<TEST_USDC>>(&scenario);
+    assert!(tunnel::authorized_key_count(&tunnel) == 1);
+    tunnel::add_authorized_key(&mut tunnel, EXTRA_KEY, ts::ctx(&mut scenario));
+    assert!(tunnel::authorized_key_count(&tunnel) == 2);
+    ts::return_shared(tunnel);
+    ts::end(scenario);
+}
+
+#[test, expected_failure(abort_code = tunnel::E_NOT_PAYER)]
+fun test_add_authorized_key_not_payer() {
+    let mut scenario = ts::begin(ADMIN);
+    setup_config(&mut scenario);
+    setup_test_usdc(&mut scenario);
+    mint_test_usdc(&mut scenario, 1000000, PAYER);
+    open_tunnel_helper(&mut scenario);
+
+    ts::next_tx(&mut scenario, RANDOM);
+    let mut tunnel = ts::take_shared<Tunnel<TEST_USDC>>(&scenario);
+    tunnel::add_authorized_key(&mut tunnel, EXTRA_KEY, ts::ctx(&mut scenario));
+    ts::return_shared(tunnel);
+    ts::end(scenario);
+}
+
+#[test, expected_failure(abort_code = tunnel::E_KEY_ALREADY_EXISTS)]
+fun test_add_authorized_key_duplicate() {
+    let mut scenario = ts::begin(ADMIN);
+    setup_config(&mut scenario);
+    setup_test_usdc(&mut scenario);
+    mint_test_usdc(&mut scenario, 1000000, PAYER);
+    open_tunnel_helper(&mut scenario);
+
+    ts::next_tx(&mut scenario, PAYER);
+    let mut tunnel = ts::take_shared<Tunnel<TEST_USDC>>(&scenario);
+    tunnel::add_authorized_key(&mut tunnel, EXTRA_KEY, ts::ctx(&mut scenario));
+    tunnel::add_authorized_key(&mut tunnel, EXTRA_KEY, ts::ctx(&mut scenario)); // duplicate
+    ts::return_shared(tunnel);
+    ts::end(scenario);
+}
+
+#[test]
+fun test_remove_authorized_key() {
+    let mut scenario = ts::begin(ADMIN);
+    setup_config(&mut scenario);
+    setup_test_usdc(&mut scenario);
+    mint_test_usdc(&mut scenario, 1000000, PAYER);
+    open_tunnel_helper(&mut scenario);
+
+    ts::next_tx(&mut scenario, PAYER);
+    let mut tunnel = ts::take_shared<Tunnel<TEST_USDC>>(&scenario);
+    tunnel::add_authorized_key(&mut tunnel, EXTRA_KEY, ts::ctx(&mut scenario));
+    assert!(tunnel::authorized_key_count(&tunnel) == 2);
+    tunnel::remove_authorized_key(&mut tunnel, EXTRA_KEY, ts::ctx(&mut scenario));
+    assert!(tunnel::authorized_key_count(&tunnel) == 1);
+    ts::return_shared(tunnel);
+    ts::end(scenario);
+}
+
+#[test, expected_failure(abort_code = tunnel::E_CANNOT_REMOVE_LAST_KEY)]
+fun test_remove_authorized_key_last() {
+    let mut scenario = ts::begin(ADMIN);
+    setup_config(&mut scenario);
+    setup_test_usdc(&mut scenario);
+    mint_test_usdc(&mut scenario, 1000000, PAYER);
+    open_tunnel_helper(&mut scenario);
+
+    ts::next_tx(&mut scenario, PAYER);
+    let mut tunnel = ts::take_shared<Tunnel<TEST_USDC>>(&scenario);
+    tunnel::remove_authorized_key(&mut tunnel, PAYER_PUBKEY, ts::ctx(&mut scenario)); // last key
+    ts::return_shared(tunnel);
+    ts::end(scenario);
+}
+
+#[test, expected_failure(abort_code = tunnel::E_KEY_NOT_FOUND)]
+fun test_remove_authorized_key_not_found() {
+    let mut scenario = ts::begin(ADMIN);
+    setup_config(&mut scenario);
+    setup_test_usdc(&mut scenario);
+    mint_test_usdc(&mut scenario, 1000000, PAYER);
+    open_tunnel_helper(&mut scenario);
+
+    ts::next_tx(&mut scenario, PAYER);
+    let mut tunnel = ts::take_shared<Tunnel<TEST_USDC>>(&scenario);
+    tunnel::add_authorized_key(&mut tunnel, EXTRA_KEY, ts::ctx(&mut scenario));
+    tunnel::remove_authorized_key(&mut tunnel, EXTRA_KEY_2, ts::ctx(&mut scenario)); // not in list
+    ts::return_shared(tunnel);
+    ts::end(scenario);
+}
+
+#[test, expected_failure(abort_code = tunnel::E_NOT_PAYER)]
+fun test_remove_authorized_key_not_payer() {
+    let mut scenario = ts::begin(ADMIN);
+    setup_config(&mut scenario);
+    setup_test_usdc(&mut scenario);
+    mint_test_usdc(&mut scenario, 1000000, PAYER);
+    open_tunnel_helper(&mut scenario);
+
+    ts::next_tx(&mut scenario, PAYER);
+    let mut tunnel = ts::take_shared<Tunnel<TEST_USDC>>(&scenario);
+    tunnel::add_authorized_key(&mut tunnel, EXTRA_KEY, ts::ctx(&mut scenario));
+    ts::return_shared(tunnel);
+
+    ts::next_tx(&mut scenario, RANDOM);
+    let mut tunnel = ts::take_shared<Tunnel<TEST_USDC>>(&scenario);
+    tunnel::remove_authorized_key(&mut tunnel, EXTRA_KEY, ts::ctx(&mut scenario));
+    ts::return_shared(tunnel);
+    ts::end(scenario);
+}
+
 // ============================================================================
 // Real claim() with invalid signature (covers claim + construct_claim_message)
 // ============================================================================
@@ -766,6 +888,8 @@ fun test_getters() {
     assert!(tunnel::total_deposit(&tunnel) == 1000000);
     assert!(tunnel::claimed_amount(&tunnel) == 0);
     assert!(tunnel::remaining_balance(&tunnel) == 1000000);
+    let _keys = tunnel::authorized_keys(&tunnel);
+    assert!(tunnel::authorized_key_count(&tunnel) == 1);
 
     ts::return_shared(tunnel);
     ts::end(scenario);

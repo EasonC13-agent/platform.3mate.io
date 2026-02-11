@@ -18,6 +18,9 @@ const E_TUNNEL_NOT_CLOSING: u64 = 7;
 const E_GRACE_PERIOD_NOT_ELAPSED: u64 = 8;
 const E_CLAIM_AMOUNT_TOO_LOW: u64 = 9;
 const E_TUNNEL_HAS_NO_CLAIMS: u64 = 10;
+const E_KEY_ALREADY_EXISTS: u64 = 11;
+const E_KEY_NOT_FOUND: u64 = 12;
+const E_CANNOT_REMOVE_LAST_KEY: u64 = 13;
 
 // ======== Structs ========
 
@@ -33,7 +36,7 @@ public struct CreatorConfig has key {
 public struct Tunnel<phantom T> has key {
     id: UID,
     payer: address,
-    payer_public_key: vector<u8>, // 32 bytes Ed25519
+    authorized_keys: vector<vector<u8>>, // multiple 32-byte Ed25519 public keys
     operator: address,
     operator_public_key: vector<u8>,
     balance: Coin<T>,
@@ -78,6 +81,16 @@ public struct CloseInitiated has copy, drop {
     grace_period_ms: u64,
 }
 
+public struct AuthorizedKeyAdded has copy, drop {
+    tunnel_id: ID,
+    public_key: vector<u8>,
+}
+
+public struct AuthorizedKeyRemoved has copy, drop {
+    tunnel_id: ID,
+    public_key: vector<u8>,
+}
+
 // ======== Functions ========
 
 #[allow(lint(public_entry))]
@@ -111,10 +124,13 @@ public entry fun open_tunnel<T>(
     ctx: &mut TxContext,
 ) {
     let deposit_amount = coin::value(&deposit);
+    let mut authorized_keys = vector::empty<vector<u8>>();
+    authorized_keys.push_back(payer_public_key);
+
     let tunnel = Tunnel<T> {
         id: object::new(ctx),
         payer: tx_context::sender(ctx),
-        payer_public_key,
+        authorized_keys,
         operator: config.operator,
         operator_public_key: config.operator_public_key,
         balance: deposit,
@@ -132,6 +148,55 @@ public entry fun open_tunnel<T>(
         deposit_amount,
     });
     transfer::share_object(tunnel);
+}
+
+/// Payer adds an authorized key to the tunnel
+#[allow(lint(public_entry))]
+public entry fun add_authorized_key<T>(
+    tunnel: &mut Tunnel<T>,
+    new_key: vector<u8>,
+    ctx: &mut TxContext,
+) {
+    assert!(tx_context::sender(ctx) == tunnel.payer, E_NOT_PAYER);
+    // Check key doesn't already exist
+    let len = tunnel.authorized_keys.length();
+    let mut i = 0;
+    while (i < len) {
+        assert!(*&tunnel.authorized_keys[i] != new_key, E_KEY_ALREADY_EXISTS);
+        i = i + 1;
+    };
+    tunnel.authorized_keys.push_back(new_key);
+    event::emit(AuthorizedKeyAdded {
+        tunnel_id: object::id(tunnel),
+        public_key: new_key,
+    });
+}
+
+/// Payer removes an authorized key from the tunnel
+#[allow(lint(public_entry))]
+public entry fun remove_authorized_key<T>(
+    tunnel: &mut Tunnel<T>,
+    key_to_remove: vector<u8>,
+    ctx: &mut TxContext,
+) {
+    assert!(tx_context::sender(ctx) == tunnel.payer, E_NOT_PAYER);
+    assert!(tunnel.authorized_keys.length() > 1, E_CANNOT_REMOVE_LAST_KEY);
+    let len = tunnel.authorized_keys.length();
+    let mut found = false;
+    let mut i = 0;
+    while (i < len) {
+        if (*&tunnel.authorized_keys[i] == key_to_remove) {
+            tunnel.authorized_keys.swap_remove(i);
+            found = true;
+            break
+        };
+        i = i + 1;
+    };
+    assert!(found, E_KEY_NOT_FOUND);
+    event::emit(AuthorizedKeyRemoved {
+        tunnel_id: object::id(tunnel),
+        public_key: key_to_remove,
+    });
 }
 
 // ======== Internal claim logic ========
@@ -172,7 +237,7 @@ fun construct_claim_message<T>(tunnel: &Tunnel<T>, cumulative_amount: u64, nonce
     msg
 }
 
-/// Operator claims funds with payer's signature on (tunnel_id || cumulative_amount || nonce)
+/// Operator claims funds with an authorized key's signature
 #[allow(lint(public_entry))]
 public entry fun claim<T>(
     tunnel: &mut Tunnel<T>,
@@ -183,11 +248,18 @@ public entry fun claim<T>(
     let expected_nonce = tunnel.nonce + 1;
     let msg = construct_claim_message(tunnel, cumulative_amount, expected_nonce);
 
-    // Verify payer's signature
-    assert!(
-        ed25519::ed25519_verify(&signature, &tunnel.payer_public_key, &msg),
-        E_INVALID_SIGNATURE,
-    );
+    // Verify signature against any authorized key
+    let len = tunnel.authorized_keys.length();
+    let mut verified = false;
+    let mut i = 0;
+    while (i < len) {
+        if (ed25519::ed25519_verify(&signature, &tunnel.authorized_keys[i], &msg)) {
+            verified = true;
+            break
+        };
+        i = i + 1;
+    };
+    assert!(verified, E_INVALID_SIGNATURE);
 
     claim_internal(tunnel, cumulative_amount, ctx);
 }
@@ -204,7 +276,7 @@ public entry fun close_with_receipt<T>(
     let Tunnel {
         id,
         payer,
-        payer_public_key: _,
+        authorized_keys: _,
         operator: _,
         operator_public_key: _,
         balance,
@@ -241,6 +313,8 @@ public fun is_closed<T>(tunnel: &Tunnel<T>): bool { tunnel.closing }
 public fun total_deposit<T>(tunnel: &Tunnel<T>): u64 { coin::value(&tunnel.balance) + tunnel.cumulative_claimed }
 public fun claimed_amount<T>(tunnel: &Tunnel<T>): u64 { tunnel.cumulative_claimed }
 public fun remaining_balance<T>(tunnel: &Tunnel<T>): u64 { coin::value(&tunnel.balance) }
+public fun authorized_keys<T>(tunnel: &Tunnel<T>): &vector<vector<u8>> { &tunnel.authorized_keys }
+public fun authorized_key_count<T>(tunnel: &Tunnel<T>): u64 { tunnel.authorized_keys.length() }
 
 /// Payer initiates close with grace period
 #[allow(lint(public_entry))]
@@ -304,7 +378,7 @@ public entry fun finalize_close<T>(
     let Tunnel {
         id,
         payer,
-        payer_public_key: _,
+        authorized_keys: _,
         operator: _,
         operator_public_key: _,
         balance,
