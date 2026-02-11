@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LuLu AI - Hackathon Pitch</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/black.min.css">
+<style>
+  .reveal { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  .reveal h1, .reveal h2, .reveal h3 { font-weight: 700; text-transform: none; }
+  .reveal h1 { font-size: 2.2em; }
+  .reveal h2 { font-size: 1.6em; }
+  .reveal h3 { font-size: 1.2em; color: #60a5fa; }
+  .reveal .subtitle { color: #94a3b8; font-size: 0.7em; margin-top: 0.3em; }
+  .highlight { color: #34d399; }
+  .warn { color: #fbbf24; }
+  .danger { color: #f87171; }
+  .blue { color: #60a5fa; }
+  .purple { color: #a78bfa; }
+  .small { font-size: 0.6em; color: #94a3b8; }
+  .reveal ul { text-align: left; }
+  .reveal li { margin: 0.3em 0; font-size: 0.85em; }
+  .flow-box {
+    display: inline-block;
+    background: rgba(59, 130, 246, 0.15);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    border-radius: 12px;
+    padding: 12px 20px;
+    margin: 6px;
+    font-size: 0.7em;
+  }
+  .flow-arrow { font-size: 1.2em; color: #60a5fa; margin: 0 4px; }
+  .two-col { display: flex; gap: 30px; text-align: left; }
+  .two-col > div { flex: 1; }
+  .card {
+    background: rgba(255,255,255,0.05);
+    border-radius: 12px;
+    padding: 20px;
+    margin: 10px 0;
+    text-align: left;
+  }
+  .card h3 { margin-top: 0; }
+  .stat { font-size: 2.5em; font-weight: 800; }
+  .stat-label { font-size: 0.5em; color: #94a3b8; display: block; }
+  .emoji-big { font-size: 3em; }
+  .arch-flow { font-size: 0.65em; }
+  .badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.6em;
+    font-weight: 600;
+    margin: 2px;
+  }
+  .badge-green { background: rgba(52, 211, 153, 0.2); color: #34d399; }
+  .badge-blue { background: rgba(96, 165, 250, 0.2); color: #60a5fa; }
+  .badge-purple { background: rgba(167, 139, 250, 0.2); color: #a78bfa; }
+  .badge-yellow { background: rgba(251, 191, 36, 0.2); color: #fbbf24; }
+  code { background: rgba(255,255,255,0.1); padding: 2px 8px; border-radius: 4px; font-size: 0.85em; }
+</style>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+
+<!-- Slide 1: Title -->
+<section>
+  <p class="emoji-big">🛡️🤖</p>
+  <h1>LuLu AI</h1>
+  <p class="subtitle">AI-Powered Firewall Assistant for macOS</p>
+  <br>
+  <p style="font-size:0.6em; color:#94a3b8;">
+    <span class="badge badge-blue">Sui Hackathon 2026</span>
+    <span class="badge badge-green">3mate Platform</span>
+  </p>
+  <p style="font-size:0.55em; color:#64748b;">Eason Chen</p>
+</section>
+
+<!-- Slide 2: The Problem -->
+<section>
+  <h2><span class="danger">The Problem</span></h2>
+  <br>
+  <div class="card">
+    <h3>🔥 Firewall alerts are <span class="danger">confusing</span></h3>
+    <ul>
+      <li>LuLu Firewall protects macOS by blocking unknown connections</li>
+      <li>But alerts show: <code>launchd → 17.253.144.10:443</code></li>
+      <li>Average users <span class="warn">can't judge</span> if a connection is safe or malicious</li>
+      <li>Result: users either <span class="danger">allow everything</span> (no security) or <span class="danger">block everything</span> (broken apps)</li>
+    </ul>
+  </div>
+  <br>
+  <p style="font-size:0.7em;">
+    <span class="warn">⚠️</span> Every wrong decision is a security risk
+  </p>
+</section>
+
+<!-- Slide 3: The Solution -->
+<section>
+  <h2><span class="highlight">The Solution</span></h2>
+  <br>
+  <div class="card">
+    <h3>🤖 Let AI analyze firewall alerts for you</h3>
+    <ul>
+      <li><span class="highlight">Automatic detection</span> of LuLu alert windows</li>
+      <li><span class="highlight">Context enrichment</span>: WHOIS, reverse DNS, geolocation</li>
+      <li><span class="highlight">AI analysis</span>: Claude evaluates risk and explains in plain language</li>
+      <li><span class="highlight">Clear recommendation</span>: Allow / Block with confidence score</li>
+    </ul>
+  </div>
+  <br>
+  <p style="font-size:0.75em;">
+    From <code>launchd → 17.253.144.10:443</code> to<br>
+    <span class="highlight">"✅ This is Apple's iCloud server. Safe to allow."</span>
+  </p>
+</section>
+
+<!-- Slide 4: Two Components -->
+<section>
+  <h2>Two Components</h2>
+  <br>
+  <div class="two-col">
+    <div class="card">
+      <h3>🖥️ Mac App</h3>
+      <p style="font-size:0.7em;"><strong>LuLu AI Companion</strong></p>
+      <ul>
+        <li>Native macOS menu bar app</li>
+        <li>Monitors LuLu alerts via Accessibility API</li>
+        <li>Auto-enriches connection data</li>
+        <li>Shows AI recommendation overlay</li>
+        <li>One-click Allow/Block</li>
+      </ul>
+      <p><span class="badge badge-blue">Swift</span> <span class="badge badge-blue">SwiftUI</span></p>
+    </div>
+    <div class="card">
+      <h3>🤖 AI Agent Skill</h3>
+      <p style="font-size:0.7em;"><strong>OpenClaw LuLu Monitor</strong></p>
+      <ul>
+        <li>Runs as background AI agent skill</li>
+        <li>Monitors LuLu via AppleScript</li>
+        <li>Sends alerts to Telegram/Discord</li>
+        <li>Remote Allow/Block via chat</li>
+        <li>Learns from your decisions</li>
+      </ul>
+      <p><span class="badge badge-purple">TypeScript</span> <span class="badge badge-purple">OpenClaw</span></p>
+    </div>
+  </div>
+</section>
+
+<!-- Slide 5: How It Works (Mac App) -->
+<section>
+  <h2>How It Works <span class="small">Mac App</span></h2>
+  <br>
+  <div class="arch-flow">
+    <div class="flow-box">🛡️ LuLu Alert<br><span class="small">Firewall popup</span></div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box">👁️ Detect<br><span class="small">Accessibility API</span></div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box">🔍 Enrich<br><span class="small">WHOIS + Geo</span></div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box">🤖 AI Analysis<br><span class="small">Claude API</span></div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box">✅ Recommend<br><span class="small">Allow / Block</span></div>
+  </div>
+  <br><br>
+  <div class="card" style="font-size:0.65em;">
+    <p><strong>Example AI Output:</strong></p>
+    <p><span class="highlight">✅ SAFE</span> (Confidence: 95%)</p>
+    <p><code>Dropbox.app</code> connecting to <code>162.125.64.1:443</code> (Dropbox Inc, San Francisco)</p>
+    <p>This is Dropbox's legitimate sync server. Standard HTTPS connection for file synchronization.</p>
+  </div>
+</section>
+
+<!-- Slide 6: How It Works (Agent Skill) -->
+<section>
+  <h2>How It Works <span class="small">AI Agent Skill</span></h2>
+  <br>
+  <div class="arch-flow">
+    <div class="flow-box">🛡️ LuLu Alert<br><span class="small">Detected via AppleScript</span></div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box">🤖 AI Agent<br><span class="small">Analyzes context</span></div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box">📱 Notify<br><span class="small">Telegram / Discord</span></div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box">👆 User Decides<br><span class="small">Tap Allow/Block</span></div>
+  </div>
+  <br><br>
+  <div class="card" style="font-size:0.65em;">
+    <p><strong>Telegram notification:</strong></p>
+    <p>🛡️ <strong>LuLu Alert</strong>: <code>node</code> wants to connect to <code>104.18.32.7:443</code></p>
+    <p>🤖 AI: This is Cloudflare CDN. Likely safe (npm registry).</p>
+    <p>
+      <span class="badge badge-green">✅ Allow</span>
+      <span class="badge badge-yellow">⏱️ Allow Once</span>
+      <span class="badge badge-yellow" style="background:rgba(248,113,113,0.2); color:#f87171;">🚫 Block</span>
+    </p>
+  </div>
+</section>
+
+<!-- Slide 7: Sui Integration - 3mate Platform -->
+<section>
+  <h2><span class="blue">Sui Integration</span></h2>
+  <p class="subtitle">3mate Platform: Tunnel Payment for AI APIs</p>
+  <br>
+  <div class="card" style="font-size:0.7em;">
+    <h3>💰 How users pay for AI analysis</h3>
+    <ol>
+      <li><strong>Deposit</strong>: User opens a Sui Tunnel, deposits USDC</li>
+      <li><strong>Use</strong>: Each AI analysis deducts from the tunnel balance</li>
+      <li><strong>Claim</strong>: Backend claims used funds with Ed25519 signature</li>
+      <li><strong>Close</strong>: User can close tunnel and get refund anytime</li>
+    </ol>
+  </div>
+  <br>
+  <div style="font-size:0.65em;">
+    <span class="badge badge-green">No subscription</span>
+    <span class="badge badge-blue">Pay per use</span>
+    <span class="badge badge-purple">On-chain settlement</span>
+    <span class="badge badge-yellow">User keeps control</span>
+  </div>
+</section>
+
+<!-- Slide 8: Smart Contract -->
+<section>
+  <h2>Smart Contract</h2>
+  <p class="subtitle">Sui Move - Tunnel Payment Protocol</p>
+  <br>
+  <div class="two-col" style="font-size:0.65em;">
+    <div class="card">
+      <h3>Core Functions</h3>
+      <ul>
+        <li><code>open_tunnel()</code> - Deposit USDC</li>
+        <li><code>add_authorized_key()</code> - Multi-key support</li>
+        <li><code>claim()</code> - Ed25519 verified withdrawal</li>
+        <li><code>close_with_receipt()</code> - Operator close</li>
+        <li><code>init_close()</code> / <code>finalize_close()</code> - User close with grace period</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Security</h3>
+      <ul>
+        <li><span class="highlight">100% test coverage</span> (42 tests)</li>
+        <li>Ed25519 signature verification on-chain</li>
+        <li>Grace period prevents operator abuse</li>
+        <li>Multi-key: one pool, multiple API keys</li>
+        <li>Gas Station sponsored transactions</li>
+      </ul>
+    </div>
+  </div>
+  <br>
+  <p style="font-size:0.55em; color:#64748b;">
+    Package: <code>0x42a47edd...092678</code> (Testnet)
+  </p>
+</section>
+
+<!-- Slide 9: Why Firewall + AI Matters -->
+<section>
+  <h2>Why This Matters</h2>
+  <br>
+  <div class="two-col">
+    <div>
+      <p class="stat"><span class="danger">83%</span></p>
+      <p class="stat-label">of users can't interpret<br>firewall alerts correctly</p>
+    </div>
+    <div>
+      <p class="stat"><span class="warn">60%</span></p>
+      <p class="stat-label">of macOS malware uses<br>outbound connections</p>
+    </div>
+  </div>
+  <br>
+  <div class="card" style="font-size:0.7em;">
+    <ul>
+      <li>macOS is increasingly targeted by malware</li>
+      <li>Application firewalls are the last line of defense</li>
+      <li>But they're only useful if users make <span class="highlight">informed decisions</span></li>
+      <li>AI bridges the knowledge gap between alerts and understanding</li>
+    </ul>
+  </div>
+</section>
+
+<!-- Slide 10: Architecture -->
+<section>
+  <h2>Architecture</h2>
+  <br>
+  <div style="font-size:0.6em; text-align:left;">
+    <pre style="background:rgba(255,255,255,0.05); padding:20px; border-radius:12px; line-height:1.6;">
+┌─────────────────────────────────────────────────┐
+│                   User's Mac                     │
+│                                                  │
+│  ┌──────────┐    ┌───────────────────────┐      │
+│  │  LuLu    │───→│  LuLu AI Companion    │      │
+│  │ Firewall │    │  (Mac App / Agent)     │      │
+│  └──────────┘    └───────────┬───────────┘      │
+│                              │                   │
+└──────────────────────────────┼───────────────────┘
+                               │ API Call + API Key
+                               ▼
+                    ┌─────────────────────┐
+                    │  3mate Platform     │
+                    │  platform.3mate.io  │
+                    │  ┌───────────────┐  │
+                    │  │ Claude API    │  │
+                    │  │ Proxy         │  │
+                    │  └───────┬───────┘  │
+                    │          │          │
+                    │  ┌───────▼───────┐  │
+                    │  │ Sui Tunnel    │  │
+                    │  │ Payment       │  │
+                    │  └───────────────┘  │
+                    └─────────────────────┘
+    </pre>
+  </div>
+</section>
+
+<!-- Slide 11: Demo -->
+<section>
+  <h2>Demo</h2>
+  <br>
+  <div class="two-col">
+    <div class="card" style="text-align:center;">
+      <p style="font-size:2em;">🖥️</p>
+      <h3>Mac App</h3>
+      <p style="font-size:0.7em;">LuLu alert → AI analysis → recommendation overlay</p>
+      <br>
+      <p><span class="badge badge-blue">Live Demo</span></p>
+    </div>
+    <div class="card" style="text-align:center;">
+      <p style="font-size:2em;">💰</p>
+      <h3>3mate Platform</h3>
+      <p style="font-size:0.7em;">Connect wallet → Mint USDC → Open Tunnel → Create API Key</p>
+      <br>
+      <p><a href="https://platform.3mate.io" style="color:#60a5fa;" target="_blank">platform.3mate.io</a></p>
+    </div>
+  </div>
+</section>
+
+<!-- Slide 12: Tech Stack -->
+<section>
+  <h2>Tech Stack</h2>
+  <br>
+  <div class="two-col" style="font-size:0.7em;">
+    <div>
+      <h3>Frontend / App</h3>
+      <ul>
+        <li>Swift + SwiftUI (Mac App)</li>
+        <li>React + TypeScript (Web)</li>
+        <li>@mysten/dapp-kit (Wallet)</li>
+        <li>Vite + TailwindCSS</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Backend / Chain</h3>
+      <ul>
+        <li>Sui Move (Smart Contracts)</li>
+        <li>Bun + Hono (API Server)</li>
+        <li>Firebase Auth</li>
+        <li>Gas Station (Sponsored TX)</li>
+        <li>Ed25519 Signature Verification</li>
+      </ul>
+    </div>
+  </div>
+  <br>
+  <div style="font-size:0.55em;">
+    <span class="badge badge-green">Open Source</span>
+    <span class="badge badge-blue">Sui Testnet</span>
+    <span class="badge badge-purple">42 Tests / 100% Coverage</span>
+  </div>
+</section>
+
+<!-- Slide 13: Thank You -->
+<section>
+  <p class="emoji-big">🛡️🤖</p>
+  <h1>LuLu AI</h1>
+  <p style="font-size:0.8em;">Making firewall decisions <span class="highlight">intelligent</span></p>
+  <br>
+  <div style="font-size:0.7em;">
+    <p>🌐 <a href="https://platform.3mate.io" style="color:#60a5fa;">platform.3mate.io</a></p>
+    <p>📦 <a href="https://github.com/EasonC13-agent/platform.3mate.io" style="color:#60a5fa;">github.com/EasonC13-agent/platform.3mate.io</a></p>
+    <p>🖥️ <a href="https://github.com/EasonC13-agent/LuLuAICompanion" style="color:#60a5fa;">github.com/EasonC13-agent/LuLuAICompanion</a></p>
+  </div>
+  <br>
+  <p style="font-size:0.6em; color:#64748b;">Eason Chen · Sui Hackathon 2026</p>
+</section>
+
+</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.min.js"></script>
+<script>
+  Reveal.initialize({
+    hash: true,
+    transition: 'slide',
+    backgroundTransition: 'fade',
+    center: true,
+  });
+</script>
+</body>
+</html>
