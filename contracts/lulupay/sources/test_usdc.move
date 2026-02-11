@@ -29,6 +29,11 @@ fun init(witness: TEST_USDC, ctx: &mut TxContext) {
     transfer::share_object(manager);
 }
 
+#[test_only]
+public fun init_for_testing(ctx: &mut TxContext) {
+    init(TEST_USDC {}, ctx);
+}
+
 public entry fun mint(
     manager: &mut TEST_USDC_Manager,
     amount: u64,

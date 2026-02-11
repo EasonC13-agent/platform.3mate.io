@@ -212,6 +212,15 @@ public entry fun close_with_receipt<T>(
     object::delete(id);
 }
 
+// ======== Getter functions ========
+
+public fun tunnel_id<T>(tunnel: &Tunnel<T>): ID { object::id(tunnel) }
+public fun payer<T>(tunnel: &Tunnel<T>): address { tunnel.payer }
+public fun is_closed<T>(tunnel: &Tunnel<T>): bool { tunnel.closing }
+public fun total_deposit<T>(tunnel: &Tunnel<T>): u64 { coin::value(&tunnel.balance) + tunnel.cumulative_claimed }
+public fun claimed_amount<T>(tunnel: &Tunnel<T>): u64 { tunnel.cumulative_claimed }
+public fun remaining_balance<T>(tunnel: &Tunnel<T>): u64 { coin::value(&tunnel.balance) }
+
 /// Payer initiates close with grace period
 public entry fun init_close<T>(
     tunnel: &mut Tunnel<T>,
@@ -229,6 +238,37 @@ public entry fun init_close<T>(
         tunnel_id: object::id(tunnel),
         close_requested_at_ms: now,
         grace_period_ms: tunnel.grace_period_ms,
+    });
+}
+
+// ======== Test-only helpers ========
+
+#[test_only]
+/// Claim without signature verification (for testing)
+public fun claim_for_testing<T>(
+    tunnel: &mut Tunnel<T>,
+    cumulative_amount: u64,
+    ctx: &mut TxContext,
+) {
+    assert!(!tunnel.closing, E_TUNNEL_CLOSING);
+    assert!(tx_context::sender(ctx) == tunnel.operator, E_NOT_OPERATOR);
+    assert!(cumulative_amount > tunnel.cumulative_claimed, E_CLAIM_AMOUNT_TOO_LOW);
+
+    let expected_nonce = tunnel.nonce + 1;
+    let claim_amount = cumulative_amount - tunnel.cumulative_claimed;
+    assert!(coin::value(&tunnel.balance) >= claim_amount, E_INSUFFICIENT_BALANCE);
+
+    let claimed_coin = coin::split(&mut tunnel.balance, claim_amount, ctx);
+    transfer::public_transfer(claimed_coin, tunnel.operator);
+
+    tunnel.cumulative_claimed = cumulative_amount;
+    tunnel.nonce = expected_nonce;
+
+    event::emit(Claimed {
+        tunnel_id: object::id(tunnel),
+        claim_amount,
+        cumulative_claimed: cumulative_amount,
+        nonce: expected_nonce,
     });
 }
 
