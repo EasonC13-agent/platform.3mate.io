@@ -12,7 +12,7 @@ type Page = 'landing' | 'login' | 'docs' | 'app'
 
 function App() {
   const { user, loading, logout, firebaseUser } = useAuth()
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'keys' | 'usage' | 'balance'>('dashboard')
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'usage' | 'balance'>('dashboard')
   const [page, setPage] = useState<Page>('landing')
   const [showDropdown, setShowDropdown] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -159,7 +159,7 @@ function App() {
       <main className="max-w-7xl mx-auto px-4 py-8">
         {/* Tabs */}
         <div className="flex gap-1 mb-8 bg-gray-800 p-1 rounded-lg w-fit">
-          {(['dashboard', 'balance', 'keys', 'usage'] as const).map((tab) => (
+          {(['dashboard', 'balance', 'usage'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -169,7 +169,7 @@ function App() {
                   : 'text-gray-400 hover:text-white'
               }`}
             >
-              {tab === 'keys' ? 'API Keys' : tab}
+              {tab}
             </button>
           ))}
         </div>
@@ -177,7 +177,6 @@ function App() {
         {/* Tab Content */}
         {activeTab === 'dashboard' && <Dashboard userId={firebaseUser.uid} />}
         {activeTab === 'balance' && <Balance userId={firebaseUser.uid} />}
-        {activeTab === 'keys' && <ApiKeys userId={firebaseUser.uid} />}
         {activeTab === 'usage' && <Usage userId={firebaseUser.uid} />}
       </main>
 

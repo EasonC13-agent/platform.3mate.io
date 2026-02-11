@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { ConnectButton, useCurrentAccount, useSignAndExecuteTransaction, useSuiClient } from '@mysten/dapp-kit'
 import { Transaction } from '@mysten/sui/transactions'
+import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519'
 import { useQuery } from '@tanstack/react-query'
 
 interface ContractConfig {
@@ -18,14 +19,13 @@ export default function TunnelManager() {
   const { mutateAsync: signAndExecute } = useSignAndExecuteTransaction()
   const [status, setStatus] = useState('')
   const [loading, setLoading] = useState(false)
+  const [generatedKey, setGeneratedKey] = useState<string | null>(null)
+  const [keyCopied, setKeyCopied] = useState(false)
 
-  // Fetch config from backend
+  // Fetch config
   const { data: config } = useQuery<ContractConfig>({
     queryKey: ['config'],
-    queryFn: async () => {
-      const res = await fetch('/api/config')
-      return res.json()
-    },
+    queryFn: () => fetch('/api/config').then(r => r.json()),
   })
 
   // Fetch tunnel status
@@ -40,7 +40,7 @@ export default function TunnelManager() {
     enabled: !!account?.address,
   })
 
-  // Fetch TEST_USDC balance
+  // Fetch USDC balance
   const { data: usdcBalance, refetch: refetchBalance } = useQuery({
     queryKey: ['usdcBalance', account?.address, config?.packageId],
     queryFn: async () => {
@@ -49,72 +49,61 @@ export default function TunnelManager() {
         owner: account.address,
         coinType: `${config.packageId}::test_usdc::TEST_USDC`,
       })
-      const total = coins.data.reduce((sum, c) => sum + BigInt(c.balance), BigInt(0))
-      return total.toString()
+      return coins.data.reduce((s, c) => s + BigInt(c.balance), 0n).toString()
     },
     enabled: !!account?.address && !!config?.packageId,
   })
 
-  const formatUsdc = (amount: string | number) => {
-    const num = typeof amount === 'string' ? parseInt(amount) : amount
-    return `$${(num / 1_000_000).toFixed(2)}`
-  }
+  // Fetch API keys list
+  const { data: apiKeys, refetch: refetchKeys } = useQuery({
+    queryKey: ['apiKeys', account?.address],
+    queryFn: async () => {
+      if (!account?.address) return []
+      const res = await fetch(`/api/keys/${account.address}`)
+      if (!res.ok) return []
+      const data = await res.json()
+      return data.keys || []
+    },
+    enabled: !!account?.address,
+  })
+
+  const fmt = (amt: string | number) => `$${(Number(amt) / 1e6).toFixed(2)}`
+  const coinType = config ? `${config.packageId}::test_usdc::TEST_USDC` : ''
 
   const mintUsdc = async () => {
     if (!config || !account) return
-    setLoading(true)
-    setStatus('Minting 100 TEST_USDC...')
+    setLoading(true); setStatus('Minting 100 TEST_USDC...')
     try {
       const tx = new Transaction()
       tx.moveCall({
         target: `${config.packageId}::test_usdc::mint`,
-        arguments: [
-          tx.object(config.testUsdcManagerId),
-          tx.pure.u64(100_000_000), // 100 USDC (6 decimals)
-          tx.pure.address(account.address),
-        ],
+        arguments: [tx.object(config.testUsdcManagerId), tx.pure.u64(100_000_000), tx.pure.address(account.address)],
       })
-      const result = await signAndExecute({ transaction: tx })
-      setStatus(`Minted! Digest: ${result.digest.slice(0, 16)}...`)
-      setTimeout(() => { refetchBalance(); }, 2000)
-    } catch (e: any) {
-      setStatus(`Mint failed: ${e.message}`)
-    }
+      const r = await signAndExecute({ transaction: tx })
+      setStatus(`✅ Minted! ${r.digest.slice(0, 12)}...`)
+      setTimeout(() => { refetchBalance() }, 2000)
+    } catch (e: any) { setStatus(`❌ ${e.message}`) }
     setLoading(false)
   }
 
   const openTunnel = async () => {
     if (!config || !account) return
-    setLoading(true)
-    setStatus('Opening tunnel...')
+    setLoading(true); setStatus('Opening tunnel...')
     try {
-      // Get USDC coins
-      const coins = await suiClient.getCoins({
-        owner: account.address,
-        coinType: `${config.packageId}::test_usdc::TEST_USDC`,
-      })
-      if (coins.data.length === 0) {
-        setStatus('No TEST_USDC coins. Mint first!')
-        setLoading(false)
-        return
-      }
+      const coins = await suiClient.getCoins({ owner: account.address, coinType })
+      if (!coins.data.length) { setStatus('No USDC. Mint first!'); setLoading(false); return }
 
       const tx = new Transaction()
-      
-      // Merge all coins into one if multiple
       let coinArg
       if (coins.data.length === 1) {
         coinArg = tx.object(coins.data[0].coinObjectId)
       } else {
-        const [primary, ...rest] = coins.data
-        coinArg = tx.object(primary.coinObjectId)
-        if (rest.length > 0) {
-          tx.mergeCoins(coinArg, rest.map(c => tx.object(c.coinObjectId)))
-        }
+        const [p, ...rest] = coins.data
+        coinArg = tx.object(p.coinObjectId)
+        if (rest.length) tx.mergeCoins(coinArg, rest.map(c => tx.object(c.coinObjectId)))
       }
 
-      // Get payer public key (32 bytes) from account
-      // account.publicKey is base64-encoded, but may include scheme flag byte
+      // Get payer public key
       let pubKeyBytes: number[]
       if (account.publicKey) {
         const raw = Array.from(
@@ -122,226 +111,219 @@ export default function TunnelManager() {
             ? Uint8Array.from(atob(account.publicKey), c => c.charCodeAt(0))
             : new Uint8Array(account.publicKey)
         )
-        // If 33 bytes, first byte is scheme flag (0x00 for Ed25519)
         pubKeyBytes = raw.length === 33 ? raw.slice(1) : raw
-      } else {
-        setStatus('Cannot get wallet public key')
-        setLoading(false)
-        return
-      }
+      } else { setStatus('Cannot get wallet public key'); setLoading(false); return }
 
       tx.moveCall({
         target: `${config.packageId}::tunnel::open_tunnel`,
-        typeArguments: [`${config.packageId}::test_usdc::TEST_USDC`],
-        arguments: [
-          tx.object(config.creatorConfigId),
-          coinArg,
-          tx.pure.vector('u8', pubKeyBytes),
-        ],
+        typeArguments: [coinType],
+        arguments: [tx.object(config.creatorConfigId), coinArg, tx.pure.vector('u8', pubKeyBytes)],
       })
-
       const result = await signAndExecute({ transaction: tx })
-      setStatus(`Tunnel opened! Digest: ${result.digest.slice(0, 16)}...`)
+      setStatus(`✅ Tunnel opened! ${result.digest.slice(0, 12)}...`)
 
-      // Wait for indexer then try to find and register the tunnel
+      // Register with backend after indexer catches up
       setTimeout(async () => {
         try {
-          // Find tunnel objects owned by this address
-          const objects = await suiClient.getOwnedObjects({
-            owner: account.address,
-            filter: { StructType: `${config.packageId}::tunnel::Tunnel<${config.packageId}::test_usdc::TEST_USDC>` },
-            options: { showContent: true },
-          })
-          
-          if (objects.data.length > 0) {
-            const tunnelObj = objects.data[0]
-            const tunnelObjectId = tunnelObj.data?.objectId
-            if (tunnelObjectId) {
-              // Get balance from on-chain
-              let totalDeposit = '0'
-              if (tunnelObj.data?.content && 'fields' in tunnelObj.data.content) {
-                const fields = tunnelObj.data.content.fields as any
-                totalDeposit = fields.balance?.fields?.balance || '0'
-              }
-              
-              // Register with backend
+          const txDetail = await suiClient.getTransactionBlock({ digest: result.digest, options: { showEvents: true } })
+          for (const ev of (txDetail.events || [])) {
+            if (ev.type.includes('::tunnel::TunnelOpened')) {
+              const p = ev.parsedJson as any
               await fetch('/api/tunnel/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  suiAddress: account.address,
-                  tunnelObjectId,
-                  totalDeposit,
-                }),
+                body: JSON.stringify({ suiAddress: account.address, tunnelObjectId: p.tunnel_id, totalDeposit: p.deposit_amount }),
               })
-
-              // Generate API key
-              const keyRes = await fetch('/api/keys/generate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  suiAddress: account.address,
-                  name: `Tunnel ${tunnelObjectId.slice(0, 8)}`,
-                }),
-              })
-              const keyData = await keyRes.json()
-              if (keyData.apiKey) {
-                setGeneratedKey(keyData.apiKey)
-              }
-              setStatus(`Tunnel registered! ID: ${tunnelObjectId.slice(0, 16)}...`)
+              setStatus(`✅ Tunnel registered: ${p.tunnel_id.slice(0, 12)}...`)
+              break
             }
           }
-          refetchTunnel()
-          refetchBalance()
-        } catch (e: any) {
-          console.error('Tunnel registration error:', e)
-          setStatus(`Tunnel opened on-chain but registration failed: ${e.message}`)
-        }
+          refetchTunnel(); refetchBalance()
+        } catch (e: any) { console.error(e) }
       }, 3000)
-    } catch (e: any) {
-      setStatus(`Open tunnel failed: ${e.message}`)
-    }
+    } catch (e: any) { setStatus(`❌ ${e.message}`) }
     setLoading(false)
   }
 
-  const [generatedKey, setGeneratedKey] = useState<string | null>(null)
-  const [keyCopied, setKeyCopied] = useState(false)
+  const createApiKey = async () => {
+    if (!config || !account) return
+    const activeTunnel = activeTunnels[0]
+    if (!activeTunnel) { setStatus('Open a tunnel first!'); return }
+
+    setLoading(true); setStatus('Generating API key...')
+    try {
+      // Generate Ed25519 keypair
+      const kp = Ed25519Keypair.generate()
+      const pubKeyBytes = Array.from(kp.getPublicKey().toRawBytes())
+      const apiKeyStr = kp.getSecretKey() // bech32 suiprivkey1...
+
+      // Add authorized key on-chain
+      setStatus('Adding key to tunnel (sign the transaction)...')
+      const tx = new Transaction()
+      tx.moveCall({
+        target: `${config.packageId}::tunnel::add_authorized_key`,
+        typeArguments: [coinType],
+        arguments: [tx.object(activeTunnel.tunnelObjectId), tx.pure.vector('u8', pubKeyBytes)],
+      })
+      await signAndExecute({ transaction: tx })
+
+      // Register key with backend
+      try {
+        await fetch('/api/keys/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            suiAddress: account.address,
+            apiKey: apiKeyStr,
+            name: `Key ${(apiKeys?.length || 0) + 1}`,
+          }),
+        })
+      } catch (e) { console.error('Key registration:', e) }
+
+      setGeneratedKey(apiKeyStr)
+      setStatus('✅ API key created and authorized on-chain!')
+      refetchKeys()
+    } catch (e: any) { setStatus(`❌ ${e.message}`) }
+    setLoading(false)
+  }
 
   const activeTunnels = tunnelStatus?.tunnels?.filter((t: any) => t.status === 'ACTIVE') || []
 
   return (
     <div className="space-y-6">
-      {/* Testnet Warning Banner */}
-      <div className="bg-yellow-900/50 border border-yellow-600/50 rounded-xl p-4 flex items-center gap-3">
-        <span className="text-2xl">⚠️</span>
+      {/* Testnet Warning */}
+      <div className="bg-yellow-900/40 border border-yellow-600/40 rounded-xl p-4 flex items-center gap-3">
+        <span className="text-xl">⚠️</span>
         <div>
-          <p className="font-semibold text-yellow-400">Testnet Only</p>
-          <p className="text-sm text-yellow-300/80">
-            Please switch your Sui wallet to <strong>Testnet</strong> before connecting. 
-            All transactions use TEST_USDC (no real funds).
-          </p>
+          <p className="font-semibold text-yellow-400 text-sm">Testnet Only</p>
+          <p className="text-xs text-yellow-300/70">Switch your Sui wallet to <strong>Testnet</strong>. All transactions use TEST_USDC (no real funds).</p>
         </div>
       </div>
 
-      {/* Wallet Connection */}
+      {/* Wallet */}
       <div className="bg-gray-800 rounded-xl p-6">
         <h3 className="text-lg font-semibold mb-4">Sui Wallet</h3>
         <div className="flex items-center gap-4">
           <ConnectButton />
-          {account && (
-            <div className="text-sm text-gray-400">
-              <span className="font-mono">{account.address.slice(0, 10)}...{account.address.slice(-6)}</span>
-            </div>
-          )}
+          {account && <span className="text-sm text-gray-400 font-mono">{account.address.slice(0, 10)}...{account.address.slice(-6)}</span>}
         </div>
       </div>
 
       {account && config && (
         <>
-          {/* TEST_USDC Balance & Actions */}
+          {/* Balance + Actions */}
           <div className="bg-gray-800 rounded-xl p-6">
             <h3 className="text-lg font-semibold mb-4">TEST_USDC</h3>
-            <div className="flex items-center gap-6 mb-4">
-              <div className="bg-gray-900 rounded-lg p-4 flex-1">
-                <p className="text-gray-400 text-sm">Wallet Balance</p>
-                <p className="text-3xl font-bold text-green-400">
-                  {formatUsdc(usdcBalance || '0')}
-                </p>
-              </div>
+            <div className="bg-gray-900 rounded-lg p-4 mb-4">
+              <p className="text-gray-400 text-sm">Wallet Balance</p>
+              <p className="text-3xl font-bold text-green-400">{fmt(usdcBalance || '0')}</p>
             </div>
             <div className="flex gap-3">
-              <button
-                onClick={mintUsdc}
-                disabled={loading}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg"
-              >
+              <button onClick={mintUsdc} disabled={loading} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg text-sm font-medium">
                 Mint 100 Demo USDC
               </button>
-              <button
-                onClick={openTunnel}
-                disabled={loading}
-                className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 rounded-lg"
-              >
+              <button onClick={openTunnel} disabled={loading} className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 rounded-lg text-sm font-medium">
                 Open Tunnel (Deposit All)
               </button>
             </div>
           </div>
 
           {/* Active Tunnels */}
-          <div className="bg-gray-800 rounded-xl p-6">
-            <h3 className="text-lg font-semibold mb-4">Payment Tunnels</h3>
-            {activeTunnels.length > 0 ? (
-              <div className="space-y-4">
-                {activeTunnels.map((t: any) => (
-                  <div key={t.id} className="bg-gray-900 rounded-lg p-4">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <div>
-                        <p className="text-gray-400 text-sm">Status</p>
-                        <p className="font-medium text-green-400">{t.status}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-400 text-sm">Deposited</p>
-                        <p className="font-medium">{formatUsdc(t.totalDeposit)}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-400 text-sm">Used</p>
-                        <p className="font-medium">{formatUsdc(BigInt(t.claimedAmount) + BigInt(t.pendingAmount))}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-400 text-sm">Remaining</p>
-                        <p className="font-medium text-green-400">{formatUsdc(t.availableBalance)}</p>
-                      </div>
+          {activeTunnels.length > 0 && (
+            <div className="bg-gray-800 rounded-xl p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold">Payment Tunnel</h3>
+                <span className="px-2 py-1 bg-green-900/50 text-green-400 text-xs rounded-full font-medium">Active</span>
+              </div>
+              {activeTunnels.map((t: any) => (
+                <div key={t.id} className="bg-gray-900 rounded-lg p-4">
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <p className="text-gray-400 text-xs">Deposited</p>
+                      <p className="font-medium text-lg">{fmt(t.totalDeposit)}</p>
                     </div>
-                    <p className="text-xs text-gray-500 mt-2 font-mono">{t.tunnelObjectId}</p>
+                    <div>
+                      <p className="text-gray-400 text-xs">Used</p>
+                      <p className="font-medium text-lg">{fmt(BigInt(t.claimedAmount || 0) + BigInt(t.pendingAmount || 0))}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-400 text-xs">Remaining</p>
+                      <p className="font-medium text-lg text-green-400">{fmt(t.availableBalance || t.totalDeposit)}</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-3 font-mono">{t.tunnelObjectId}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* API Keys Section */}
+          <div className="bg-gray-800 rounded-xl p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">API Keys</h3>
+              <button
+                onClick={createApiKey}
+                disabled={loading || !activeTunnels.length}
+                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 rounded-lg text-sm font-medium"
+              >
+                + Create Key
+              </button>
+            </div>
+
+            {!activeTunnels.length && (
+              <p className="text-gray-400 text-sm">Open a tunnel first, then create API keys to access the API.</p>
+            )}
+
+            {/* Generated Key (one-time display) */}
+            {generatedKey && (
+              <div className="bg-green-900/20 border border-green-500/50 rounded-lg p-4 mb-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <span>🔑</span>
+                  <p className="font-semibold text-green-400 text-sm">New API Key Created</p>
+                </div>
+                <div className="bg-gray-900 rounded p-3 mb-3">
+                  <code className="text-xs text-green-300 break-all select-all">{generatedKey}</code>
+                </div>
+                <div className="flex items-center gap-2 mb-2">
+                  <button
+                    onClick={() => { navigator.clipboard.writeText(generatedKey); setKeyCopied(true); setTimeout(() => setKeyCopied(false), 2000) }}
+                    className="px-3 py-1.5 bg-green-600 hover:bg-green-700 rounded text-xs font-medium"
+                  >
+                    {keyCopied ? '✅ Copied!' : '📋 Copy'}
+                  </button>
+                  <button onClick={() => setGeneratedKey(null)} className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-xs">
+                    I've saved it
+                  </button>
+                </div>
+                <p className="text-xs text-red-400">⚠️ Save this now! We don't store it. It won't be shown again.</p>
+              </div>
+            )}
+
+            {/* Key List */}
+            {apiKeys && apiKeys.length > 0 && (
+              <div className="space-y-2">
+                {apiKeys.map((k: any) => (
+                  <div key={k.id} className="bg-gray-900 rounded-lg p-3 flex justify-between items-center">
+                    <div>
+                      <p className="text-sm font-medium">{k.name || 'API Key'}</p>
+                      <p className="text-xs text-gray-400 font-mono">sk-...{k.keyHint || '****'}</p>
+                    </div>
+                    <span className={`text-xs px-2 py-1 rounded-full ${k.isActive !== false ? 'bg-green-900/50 text-green-400' : 'bg-red-900/50 text-red-400'}`}>
+                      {k.isActive !== false ? 'Active' : 'Revoked'}
+                    </span>
                   </div>
                 ))}
               </div>
-            ) : (
-              <p className="text-gray-400">No active tunnels. Mint USDC and open a tunnel to start.</p>
+            )}
+
+            {activeTunnels.length > 0 && (!apiKeys || apiKeys.length === 0) && (
+              <p className="text-gray-400 text-sm">No API keys yet. Create one to start using the API.</p>
             )}
           </div>
         </>
       )}
 
-      {/* Generated API Key (one-time display) */}
-      {generatedKey && (
-        <div className="bg-green-900/30 border-2 border-green-500 rounded-xl p-6">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-2xl">🔑</span>
-            <h3 className="text-lg font-bold text-green-400">Your API Key</h3>
-          </div>
-          <div className="bg-gray-900 rounded-lg p-4 mb-3">
-            <code className="text-sm text-green-300 break-all select-all">{generatedKey}</code>
-          </div>
-          <div className="flex items-center gap-3 mb-3">
-            <button
-              onClick={() => {
-                navigator.clipboard.writeText(generatedKey)
-                setKeyCopied(true)
-                setTimeout(() => setKeyCopied(false), 3000)
-              }}
-              className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm font-medium"
-            >
-              {keyCopied ? '✅ Copied!' : '📋 Copy Key'}
-            </button>
-            <button
-              onClick={() => setGeneratedKey(null)}
-              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm"
-            >
-              I've saved it
-            </button>
-          </div>
-          <div className="bg-red-900/30 border border-red-500/50 rounded-lg p-3">
-            <p className="text-sm text-red-400 font-semibold">⚠️ Save this key now! It will NOT be shown again.</p>
-            <p className="text-xs text-red-300/70 mt-1">
-              We do not store your API key. If you lose it, you'll need to generate a new one.
-              Use this key as the <code className="bg-gray-800 px-1 rounded">x-api-key</code> header when calling the API.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Status Messages */}
+      {/* Status */}
       {status && (
         <div className="bg-gray-800 rounded-xl p-4">
           <p className="text-sm text-yellow-400">{status}</p>
