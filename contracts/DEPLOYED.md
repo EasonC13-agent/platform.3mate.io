@@ -14,14 +14,19 @@
 - **CoinMetadata (immutable):** `0x3f3962e34cc74d60bae8d8074da4fda618ee642d65d34eb223e9c63cfa96c328`
 - **UpgradeCap:** `0x697850fef17f62b7ce5820e4efad1c1176fe14b715ce71f3beaf046e404699d2`
 
-## CreatorConfig
+## CreatorConfig (CURRENT - Backend Operator)
 
-- **CreatorConfig ID (shared):** `0xeecfff58414e378629adea0192cf8e6b369ee41710af582f8ec3100381bf115f`
-- **Operator:** `0x5eef0f57e2544a274fb1fa99b26c9cda55e329bdf2e33da7a9dafba2c061f227`
-- **Operator Public Key (base64):** `lhjxSX4XRGp9GAlFIUPv0YGgN6mIvIuQ8E0IvHaYXCU=`
+- **CreatorConfig ID (shared):** `0x9833f3bb2429b6a7c26e9a1cfdcbeab446f5995d69bf7b218ce72d1c385cc90b`
+- **Operator:** `0xb467e3a2d287fa003b8f62c0cb1efb98f54c20e27604078a831b3c49d5f0cdde`
+- **Operator Public Key (base64):** `WA9dzj2nNWlIfjddC3MZ1xldyjPJuBn+5J4Tovt+A+A=`
 - **Grace Period:** 3,600,000 ms (60 minutes)
 - **Metadata:** "LuLuAI Platform"
-- **Creation Digest:** 75okvzUgfvfuxrLLWZcd2iVDvycebEBidYHGiBtxTKge
+- **Creation Digest:** FcL6JvTTyXpcJGvWZAuRwd2WuhJztCArANsPM1svB1fA
+
+## CreatorConfig (OLD - Agent Wallet, deprecated)
+
+- **CreatorConfig ID:** `0xeecfff58414e378629adea0192cf8e6b369ee41710af582f8ec3100381bf115f`
+- **Operator:** `0x5eef0f57e2544a274fb1fa99b26c9cda55e329bdf2e33da7a9dafba2c061f227`
 
 ## Coin Type
 
