@@ -174,6 +174,20 @@ export default function TunnelManager() {
                   totalDeposit,
                 }),
               })
+
+              // Generate API key
+              const keyRes = await fetch('/api/keys/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  suiAddress: account.address,
+                  name: `Tunnel ${tunnelObjectId.slice(0, 8)}`,
+                }),
+              })
+              const keyData = await keyRes.json()
+              if (keyData.apiKey) {
+                setGeneratedKey(keyData.apiKey)
+              }
               setStatus(`Tunnel registered! ID: ${tunnelObjectId.slice(0, 16)}...`)
             }
           }
@@ -190,10 +204,25 @@ export default function TunnelManager() {
     setLoading(false)
   }
 
+  const [generatedKey, setGeneratedKey] = useState<string | null>(null)
+  const [keyCopied, setKeyCopied] = useState(false)
+
   const activeTunnels = tunnelStatus?.tunnels?.filter((t: any) => t.status === 'ACTIVE') || []
 
   return (
     <div className="space-y-6">
+      {/* Testnet Warning Banner */}
+      <div className="bg-yellow-900/50 border border-yellow-600/50 rounded-xl p-4 flex items-center gap-3">
+        <span className="text-2xl">⚠️</span>
+        <div>
+          <p className="font-semibold text-yellow-400">Testnet Only</p>
+          <p className="text-sm text-yellow-300/80">
+            Please switch your Sui wallet to <strong>Testnet</strong> before connecting. 
+            All transactions use TEST_USDC (no real funds).
+          </p>
+        </div>
+      </div>
+
       {/* Wallet Connection */}
       <div className="bg-gray-800 rounded-xl p-6">
         <h3 className="text-lg font-semibold mb-4">Sui Wallet</h3>
@@ -272,6 +301,44 @@ export default function TunnelManager() {
             )}
           </div>
         </>
+      )}
+
+      {/* Generated API Key (one-time display) */}
+      {generatedKey && (
+        <div className="bg-green-900/30 border-2 border-green-500 rounded-xl p-6">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-2xl">🔑</span>
+            <h3 className="text-lg font-bold text-green-400">Your API Key</h3>
+          </div>
+          <div className="bg-gray-900 rounded-lg p-4 mb-3">
+            <code className="text-sm text-green-300 break-all select-all">{generatedKey}</code>
+          </div>
+          <div className="flex items-center gap-3 mb-3">
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(generatedKey)
+                setKeyCopied(true)
+                setTimeout(() => setKeyCopied(false), 3000)
+              }}
+              className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm font-medium"
+            >
+              {keyCopied ? '✅ Copied!' : '📋 Copy Key'}
+            </button>
+            <button
+              onClick={() => setGeneratedKey(null)}
+              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm"
+            >
+              I've saved it
+            </button>
+          </div>
+          <div className="bg-red-900/30 border border-red-500/50 rounded-lg p-3">
+            <p className="text-sm text-red-400 font-semibold">⚠️ Save this key now! It will NOT be shown again.</p>
+            <p className="text-xs text-red-300/70 mt-1">
+              We do not store your API key. If you lose it, you'll need to generate a new one.
+              Use this key as the <code className="bg-gray-800 px-1 rounded">x-api-key</code> header when calling the API.
+            </p>
+          </div>
+        </div>
       )}
 
       {/* Status Messages */}
