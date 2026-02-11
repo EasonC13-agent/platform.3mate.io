@@ -10,5 +10,4 @@ firebase-service-account.json
 *-service-account.json
 
 # Build output
-public/assets/
 web/node_modules/
