@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3mate Platform - Documentation</title>
+  <style>
+    :root {
+      --bg: #0a0a0f;
+      --surface: #12121a;
+      --surface2: #1a1a26;
+      --border: #2a2a3a;
+      --text: #e4e4ef;
+      --text-dim: #8888a0;
+      --accent: #6366f1;
+      --accent-light: #818cf8;
+      --green: #22c55e;
+      --yellow: #eab308;
+      --red: #ef4444;
+      --code-bg: #0d0d14;
+      --max-w: 960px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--accent-light); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* Nav */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      background: rgba(10,10,15,0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+    nav .inner {
+      max-width: var(--max-w); margin: 0 auto;
+      padding: 0.75rem 1.5rem;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    nav .logo { font-weight: 700; font-size: 1.1rem; color: var(--text); }
+    nav .logo span { color: var(--accent-light); }
+    nav .links { display: flex; gap: 1.5rem; font-size: 0.9rem; }
+    nav .links a { color: var(--text-dim); }
+    nav .links a:hover { color: var(--text); text-decoration: none; }
+
+    /* Hero */
+    .hero {
+      padding: 8rem 1.5rem 4rem;
+      text-align: center;
+    }
+    .hero h1 {
+      font-size: 2.8rem; font-weight: 800;
+      background: linear-gradient(135deg, var(--accent-light), #a78bfa, #c084fc);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      margin-bottom: 1rem;
+    }
+    .hero p { color: var(--text-dim); font-size: 1.15rem; max-width: 600px; margin: 0 auto; }
+    .hero .badges { margin-top: 1.5rem; display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap; }
+    .badge {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      padding: 0.35rem 0.85rem; border-radius: 999px;
+      font-size: 0.8rem; font-weight: 500;
+      border: 1px solid var(--border); background: var(--surface);
+    }
+    .badge.green { border-color: #16a34a40; color: var(--green); }
+    .badge.yellow { border-color: #ca8a0440; color: var(--yellow); }
+
+    /* Content */
+    .content { max-width: var(--max-w); margin: 0 auto; padding: 0 1.5rem 6rem; }
+
+    /* Sections */
+    .section { margin-bottom: 3.5rem; }
+    .section h2 {
+      font-size: 1.6rem; font-weight: 700; margin-bottom: 1rem;
+      padding-bottom: 0.5rem; border-bottom: 1px solid var(--border);
+    }
+    .section h3 { font-size: 1.15rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: var(--accent-light); }
+    .section p { margin-bottom: 0.75rem; color: var(--text-dim); }
+    .section ul, .section ol { margin: 0.5rem 0 1rem 1.5rem; color: var(--text-dim); }
+    .section li { margin-bottom: 0.3rem; }
+
+    /* Code */
+    code {
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      background: var(--code-bg); padding: 0.15rem 0.4rem; border-radius: 4px;
+      font-size: 0.85em; color: var(--accent-light);
+    }
+    pre {
+      background: var(--code-bg); border: 1px solid var(--border);
+      border-radius: 8px; padding: 1rem 1.25rem;
+      overflow-x: auto; margin: 0.75rem 0 1.25rem;
+    }
+    pre code { background: none; padding: 0; font-size: 0.85rem; color: var(--text); }
+    .lang-label {
+      display: inline-block; font-size: 0.7rem; font-weight: 600;
+      color: var(--text-dim); text-transform: uppercase; margin-bottom: 0.25rem;
+    }
+
+    /* Cards */
+    .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; margin: 1rem 0; }
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 1.25rem;
+    }
+    .card h4 { font-size: 1rem; margin-bottom: 0.4rem; }
+    .card p { font-size: 0.9rem; margin: 0; }
+    .card .icon { font-size: 1.4rem; margin-bottom: 0.5rem; }
+
+    /* Table */
+    table { width: 100%; border-collapse: collapse; margin: 0.75rem 0 1.25rem; font-size: 0.9rem; }
+    th, td { padding: 0.6rem 0.75rem; text-align: left; border-bottom: 1px solid var(--border); }
+    th { color: var(--text); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    td { color: var(--text-dim); }
+    td code { font-size: 0.8rem; }
+
+    /* Diagram */
+    .diagram {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 1.5rem; margin: 1rem 0;
+      font-family: 'SF Mono', monospace; font-size: 0.8rem;
+      white-space: pre; overflow-x: auto; line-height: 1.5;
+      color: var(--text-dim);
+    }
+
+    /* TOC */
+    .toc {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 1.25rem 1.5rem; margin-bottom: 3rem;
+    }
+    .toc h3 { margin: 0 0 0.75rem; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); }
+    .toc ol { margin: 0; padding-left: 1.25rem; }
+    .toc li { margin-bottom: 0.3rem; font-size: 0.9rem; }
+
+    /* Alert box */
+    .alert {
+      border-radius: 8px; padding: 1rem 1.25rem; margin: 1rem 0;
+      font-size: 0.9rem;
+    }
+    .alert.info { background: #6366f115; border: 1px solid #6366f130; }
+    .alert.warn { background: #eab30815; border: 1px solid #eab30830; color: var(--yellow); }
+    .alert.success { background: #22c55e15; border: 1px solid #22c55e30; color: var(--green); }
+
+    /* Footer */
+    footer {
+      text-align: center; padding: 2rem 1.5rem;
+      border-top: 1px solid var(--border);
+      color: var(--text-dim); font-size: 0.85rem;
+    }
+
+    /* Responsive */
+    @media (max-width: 640px) {
+      .hero h1 { font-size: 2rem; }
+      .card-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="inner">
+    <div class="logo"><span>3mate</span> Platform</div>
+    <div class="links">
+      <a href="#overview">Overview</a>
+      <a href="#quickstart">Quick Start</a>
+      <a href="#api">API</a>
+      <a href="#contracts">Contracts</a>
+      <a href="https://platform.3mate.io" target="_blank">Dashboard ↗</a>
+    </div>
+  </div>
+</nav>
+
+<div class="hero">
+  <h1>3mate Platform</h1>
+  <p>Pay-per-use LLM API access powered by Sui Tunnel micropayments. No subscriptions, no minimums. Just deposit and use.</p>
+  <div class="badges">
+    <span class="badge green">● Sui Testnet</span>
+    <span class="badge yellow">⚡ Ed25519 Signed Channels</span>
+    <span class="badge">🔐 On-chain Settlement</span>
+  </div>
+</div>
+
+<div class="content">
+
+  <div class="toc">
+    <h3>Contents</h3>
+    <ol>
+      <li><a href="#overview">Overview</a></li>
+      <li><a href="#how-it-works">How It Works</a></li>
+      <li><a href="#quickstart">Quick Start</a></li>
+      <li><a href="#api">API Reference</a></li>
+      <li><a href="#contracts">Smart Contracts</a></li>
+      <li><a href="#integration">Integration Guide</a></li>
+      <li><a href="#security">Security Model</a></li>
+    </ol>
+  </div>
+
+  <!-- Overview -->
+  <div class="section" id="overview">
+    <h2>Overview</h2>
+    <p>3mate Platform is a generic micropayment layer for API services, built on <a href="https://sui.io" target="_blank">Sui</a>. It uses a payment channel (Tunnel) pattern where users deposit funds on-chain and consume them off-chain via signed receipts, with on-chain settlement.</p>
+
+    <div class="card-grid">
+      <div class="card">
+        <div class="icon">💰</div>
+        <h4>Deposit Once, Use Many</h4>
+        <p>Open a Tunnel with USDC deposit. Each API call deducts from your balance off-chain. Settle on-chain when done.</p>
+      </div>
+      <div class="card">
+        <div class="icon">🔑</div>
+        <h4>Multi-Key Support</h4>
+        <p>One Tunnel, multiple API keys. Share a balance pool across services or team members.</p>
+      </div>
+      <div class="card">
+        <div class="icon">⚡</div>
+        <h4>Instant API Access</h4>
+        <p>Anthropic-compatible endpoint. Swap your base URL and API key to start using Claude models immediately.</p>
+      </div>
+      <div class="card">
+        <div class="icon">🛡️</div>
+        <h4>Trustless Settlement</h4>
+        <p>Ed25519 signed state receipts. Operator claims on-chain with cryptographic proof. Payer can close with grace period.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- How It Works -->
+  <div class="section" id="how-it-works">
+    <h2>How It Works</h2>
+
+    <div class="diagram">
+┌──────────────────────────────────────────────────────────────┐
+│  1. User deposits USDC into a Tunnel (on-chain)             │
+│     └─ open_tunnel(config, coin, public_key)                │
+├──────────────────────────────────────────────────────────────┤
+│  2. User generates API keys (off-chain + on-chain)          │
+│     └─ add_authorized_key(tunnel, new_pubkey)               │
+├──────────────────────────────────────────────────────────────┤
+│  3. API calls use key to sign requests (off-chain)          │
+│     └─ POST /v1/messages  { x-api-key: sk-3mate-... }      │
+├──────────────────────────────────────────────────────────────┤
+│  4. Operator claims accumulated usage (on-chain)            │
+│     └─ claim(tunnel, cumulative_amount, signature)          │
+├──────────────────────────────────────────────────────────────┤
+│  5. User closes Tunnel, gets refund of remaining (on-chain) │
+│     └─ initiate_close() → finalize_close() after grace      │
+└──────────────────────────────────────────────────────────────┘</div>
+
+    <h3>State Receipt Signing</h3>
+    <p>Each API call updates the cumulative usage amount. The backend signs a state receipt using the API key's Ed25519 keypair:</p>
+    <pre><code>message = tunnel_id_bytes || bcs::to_bytes(cumulative_amount) || bcs::to_bytes(nonce)
+signature = ed25519_sign(message, private_key)</code></pre>
+    <p>The operator can submit this signature on-chain to claim funds up to <code>cumulative_amount</code>. The contract verifies the signature against any authorized key in the Tunnel.</p>
+  </div>
+
+  <!-- Quick Start -->
+  <div class="section" id="quickstart">
+    <h2>Quick Start</h2>
+
+    <h3>1. Connect Wallet</h3>
+    <p>Visit <a href="https://platform.3mate.io" target="_blank">platform.3mate.io</a> and connect your Sui wallet. Make sure you're on <strong>Testnet</strong>.</p>
+
+    <h3>2. Mint Test USDC</h3>
+    <p>Click "Mint TEST_USDC" on the dashboard to get free test tokens for development.</p>
+
+    <h3>3. Open a Tunnel</h3>
+    <p>Deposit USDC to create a payment Tunnel. This locks your funds in an on-chain escrow contract.</p>
+
+    <h3>4. Create an API Key</h3>
+    <p>Generate an API key from the dashboard. The key is shown <strong>once</strong>. Copy it immediately.</p>
+    <div class="alert warn">⚠️ API keys are displayed only once at creation. Store them securely. The platform only stores the public key and a hint.</div>
+
+    <h3>5. Make API Calls</h3>
+    <p>Use your API key with the Anthropic-compatible endpoint:</p>
+    <pre><code>curl https://platform.3mate.io/v1/messages \
+  -H "x-api-key: sk-3mate-..." \
+  -H "content-type: application/json" \
+  -d '{
+    "model": "claude-haiku-4-5",
+    "max_tokens": 1024,
+    "messages": [{"role": "user", "content": "Hello!"}]
+  }'</code></pre>
+  </div>
+
+  <!-- API Reference -->
+  <div class="section" id="api">
+    <h2>API Reference</h2>
+
+    <h3>Messages (Anthropic-Compatible)</h3>
+    <p>Drop-in replacement for <code>api.anthropic.com</code>. Supports streaming.</p>
+
+    <div class="lang-label">HTTP</div>
+    <pre><code>POST /v1/messages
+Host: platform.3mate.io
+Content-Type: application/json
+x-api-key: sk-3mate-...
+
+{
+  "model": "claude-haiku-4-5",
+  "max_tokens": 1024,
+  "messages": [
+    { "role": "user", "content": "Explain Sui Move in one paragraph." }
+  ]
+}</code></pre>
+
+    <h3>API Key Management</h3>
+
+    <table>
+      <thead><tr><th>Method</th><th>Endpoint</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>POST</code></td><td><code>/api/keys/generate</code></td><td>Generate a new API key (returns full key once)</td></tr>
+        <tr><td><code>GET</code></td><td><code>/api/keys/list?suiAddress=0x...</code></td><td>List keys for an address (hint only)</td></tr>
+      </tbody>
+    </table>
+
+    <div class="lang-label">Generate Key</div>
+    <pre><code>POST /api/keys/generate
+Content-Type: application/json
+
+{
+  "suiAddress": "0xabc123...",
+  "tunnelObjectId": "0xdef456..."
+}
+
+// Response:
+{
+  "apiKey": "sk-3mate-...",       // ⚠️ Shown ONCE
+  "keyHint": "sk-3mate-abc...xyz",
+  "publicKey": "base64..."
+}</code></pre>
+
+    <h3>Tunnel Management</h3>
+
+    <table>
+      <thead><tr><th>Method</th><th>Endpoint</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>POST</code></td><td><code>/api/tunnel/register</code></td><td>Register an on-chain Tunnel with backend</td></tr>
+        <tr><td><code>GET</code></td><td><code>/api/tunnel/status/:suiAddress</code></td><td>Get Tunnel status and balance</td></tr>
+        <tr><td><code>POST</code></td><td><code>/api/tunnel/claim</code></td><td>Operator claims accumulated usage on-chain</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Config</h3>
+    <table>
+      <thead><tr><th>Method</th><th>Endpoint</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>GET</code></td><td><code>/api/config</code></td><td>Get contract addresses and network info</td></tr>
+        <tr><td><code>GET</code></td><td><code>/health</code></td><td>Health check</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Smart Contracts -->
+  <div class="section" id="contracts">
+    <h2>Smart Contracts</h2>
+
+    <div class="alert info">ℹ️ Contracts are deployed on Sui Testnet. View on <a href="https://suiscan.xyz/testnet/object/0x42a47edd3066dd10e516ec2715ba61fbca91eec0be12288c97b0edb04d092678" target="_blank">Suiscan</a>.</div>
+
+    <h3>Deployed Addresses (Testnet)</h3>
+    <table>
+      <thead><tr><th>Object</th><th>Address</th></tr></thead>
+      <tbody>
+        <tr><td>Package</td><td><code>0x42a47edd...092678</code></td></tr>
+        <tr><td>CreatorConfig</td><td><code>0xf89f574e...e8ebf6</code></td></tr>
+        <tr><td>TEST_USDC Manager</td><td><code>0x9fef50d4...f6460</code></td></tr>
+      </tbody>
+    </table>
+
+    <h3>Tunnel Module</h3>
+    <p>The core payment channel contract. A Tunnel is a shared object holding escrowed funds with authorized signing keys.</p>
+
+    <table>
+      <thead><tr><th>Function</th><th>Access</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>create_config()</code></td><td>Anyone</td><td>Create a new operator config</td></tr>
+        <tr><td><code>open_tunnel()</code></td><td>Anyone</td><td>Deposit funds and create a Tunnel</td></tr>
+        <tr><td><code>add_deposit()</code></td><td>Payer</td><td>Add more funds to existing Tunnel</td></tr>
+        <tr><td><code>add_authorized_key()</code></td><td>Payer</td><td>Authorize a new signing key</td></tr>
+        <tr><td><code>remove_authorized_key()</code></td><td>Payer</td><td>Revoke a signing key</td></tr>
+        <tr><td><code>claim()</code></td><td>Operator</td><td>Claim funds with signed receipt</td></tr>
+        <tr><td><code>initiate_close()</code></td><td>Payer</td><td>Start close with grace period</td></tr>
+        <tr><td><code>finalize_close()</code></td><td>Payer</td><td>Complete close after grace period</td></tr>
+        <tr><td><code>cooperative_close()</code></td><td>Operator</td><td>Immediate close with final receipt</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Error Codes</h3>
+    <table>
+      <thead><tr><th>Code</th><th>Name</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td><code>E_INVALID_SIGNATURE</code></td><td>Ed25519 signature verification failed</td></tr>
+        <tr><td>3</td><td><code>E_INSUFFICIENT_BALANCE</code></td><td>Claim exceeds Tunnel balance</td></tr>
+        <tr><td>4</td><td><code>E_NOT_PAYER</code></td><td>Caller is not the Tunnel payer</td></tr>
+        <tr><td>5</td><td><code>E_NOT_OPERATOR</code></td><td>Caller is not the operator</td></tr>
+        <tr><td>6</td><td><code>E_TUNNEL_CLOSING</code></td><td>Tunnel is in closing state</td></tr>
+        <tr><td>9</td><td><code>E_CLAIM_AMOUNT_TOO_LOW</code></td><td>Cumulative amount &le; already claimed</td></tr>
+        <tr><td>11</td><td><code>E_KEY_ALREADY_EXISTS</code></td><td>Key already authorized</td></tr>
+        <tr><td>12</td><td><code>E_KEY_NOT_FOUND</code></td><td>Key not in authorized list</td></tr>
+        <tr><td>13</td><td><code>E_CANNOT_REMOVE_LAST_KEY</code></td><td>Must keep at least one key</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Test Coverage</h3>
+    <div class="alert success">✅ 42 tests, 100% code coverage. Includes real Ed25519 signature verification tests.</div>
+  </div>
+
+  <!-- Integration Guide -->
+  <div class="section" id="integration">
+    <h2>Integration Guide</h2>
+    <p>Want to add Tunnel payments to your own service? Here's how.</p>
+
+    <h3>For API Consumers (Apps)</h3>
+    <p>If you're building an app that consumes LLM APIs (like <a href="https://github.com/EasonC13-agent/LuLuAICompanion" target="_blank">LuLuAI</a>), integration is simple:</p>
+
+    <ol>
+      <li>Get an API key from <a href="https://platform.3mate.io" target="_blank">platform.3mate.io</a></li>
+      <li>Replace your Anthropic base URL with <code>https://platform.3mate.io</code></li>
+      <li>Use your <code>sk-3mate-...</code> key in the <code>x-api-key</code> header</li>
+    </ol>
+
+    <div class="lang-label">Python</div>
+    <pre><code>import anthropic
+
+client = anthropic.Anthropic(
+    api_key="sk-3mate-...",
+    base_url="https://platform.3mate.io"
+)
+
+message = client.messages.create(
+    model="claude-haiku-4-5",
+    max_tokens=1024,
+    messages=[{"role": "user", "content": "Hello!"}]
+)</code></pre>
+
+    <div class="lang-label">TypeScript</div>
+    <pre><code>import Anthropic from '@anthropic-ai/sdk';
+
+const client = new Anthropic({
+  apiKey: 'sk-3mate-...',
+  baseURL: 'https://platform.3mate.io'
+});
+
+const message = await client.messages.create({
+  model: 'claude-haiku-4-5',
+  max_tokens: 1024,
+  messages: [{ role: 'user', content: 'Hello!' }]
+});</code></pre>
+
+    <h3>For Service Providers</h3>
+    <p>To offer your own API service with Tunnel payments:</p>
+    <ol>
+      <li>Deploy a <code>CreatorConfig</code> on Sui with your operator key</li>
+      <li>Run a backend that verifies API keys against on-chain Tunnel state</li>
+      <li>Periodically call <code>claim()</code> to settle accumulated usage</li>
+    </ol>
+    <p>See the <a href="https://github.com/EasonC13-agent/platform.3mate.io" target="_blank">source code</a> for a complete reference implementation.</p>
+  </div>
+
+  <!-- Security -->
+  <div class="section" id="security">
+    <h2>Security Model</h2>
+
+    <h3>Trust Assumptions</h3>
+    <ul>
+      <li><strong>Payer trusts operator</strong> to provide the service and claim fairly</li>
+      <li><strong>Operator trusts on-chain state</strong> for deposit verification</li>
+      <li><strong>Neither party can steal</strong>: funds are locked in contract, claims require valid signatures, payer can always close</li>
+    </ul>
+
+    <h3>Key Management</h3>
+    <ul>
+      <li>API keys are Ed25519 keypairs. The private key IS the API key</li>
+      <li>Public keys are registered on-chain via <code>add_authorized_key()</code></li>
+      <li>Backend stores only public key + hint (first/last chars). Full key shown once at creation</li>
+      <li>Compromised key? Remove it on-chain with <code>remove_authorized_key()</code> and generate a new one</li>
+    </ul>
+
+    <h3>Grace Period</h3>
+    <p>When a payer initiates close, there's a grace period (default: 60 minutes) for the operator to submit final claims. After the grace period, the payer can finalize and withdraw remaining funds.</p>
+
+    <h3>Cooperative Close</h3>
+    <p>The operator can also close the Tunnel immediately with a final signed receipt, returning the remaining balance to the payer in one transaction.</p>
+  </div>
+
+</div>
+
+<footer>
+  <p>3mate Platform &middot; Built on <a href="https://sui.io" target="_blank">Sui</a> &middot; <a href="https://github.com/EasonC13-agent/platform.3mate.io" target="_blank">GitHub</a></p>
+</footer>
+
+</body>
+</html>
