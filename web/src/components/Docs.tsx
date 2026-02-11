@@ -1,298 +1,455 @@
+import { useState } from 'react'
+
 interface DocsProps {
   onBack: () => void
   onGetStarted: () => void
 }
 
+type Section = 'quickstart' | 'api' | 'payment' | 'providers' | 'contracts'
+
+const PACKAGE_ID = '0x0a906dc87bd311f0f00b2494308cdbfdbb6a6bad61bc00a0d79f897420970602'
+
 export default function Docs({ onBack, onGetStarted }: DocsProps) {
+  const [active, setActive] = useState<Section>('quickstart')
+
+  const sections: { id: Section; label: string }[] = [
+    { id: 'quickstart', label: 'Quick Start' },
+    { id: 'api', label: 'API Reference' },
+    { id: 'payment', label: 'Payment Flow' },
+    { id: 'providers', label: 'For Providers' },
+    { id: 'contracts', label: 'Contracts' },
+  ]
+
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       {/* Nav */}
-      <nav className="border-b border-gray-800 sticky top-0 bg-gray-900/95 backdrop-blur z-50">
+      <nav className="border-b border-gray-800 sticky top-0 bg-gray-900/95 backdrop-blur z-10">
         <div className="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
           <button onClick={onBack} className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-            <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-emerald-400 rounded flex items-center justify-center font-bold text-[10px]">3m</div>
-            <span className="font-semibold">3mate Platform</span>
+            <span>←</span>
+            <span className="text-xl font-bold">3mate</span>
           </button>
-          <button onClick={onGetStarted} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium transition-colors">
-            Get Started
+          <button
+            onClick={onGetStarted}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium transition-colors"
+          >
+            Sign In
           </button>
         </div>
       </nav>
 
-      <div className="max-w-4xl mx-auto px-6 py-12">
-        <h1 className="text-4xl font-bold mb-2">Documentation</h1>
-        <p className="text-gray-400 mb-12">Everything you need to integrate with 3mate Platform.</p>
-
-        {/* Table of Contents */}
-        <div className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-6 mb-12">
-          <h3 className="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-3">On this page</h3>
-          <ul className="space-y-2 text-sm">
-            {[
-              ['#quick-start', 'Quick Start'],
-              ['#api-reference', 'API Reference'],
-              ['#payment-flow', 'Payment Flow (Tunnel)'],
-              ['#service-providers', 'For Service Providers'],
-              ['#smart-contracts', 'Smart Contracts'],
-            ].map(([href, label]) => (
-              <li key={href}><a href={href} className="text-blue-400 hover:text-blue-300 transition-colors">{label}</a></li>
+      <div className="max-w-6xl mx-auto px-6 py-8 flex gap-8">
+        {/* Sidebar */}
+        <aside className="hidden md:block w-48 flex-shrink-0">
+          <div className="sticky top-24 space-y-1">
+            <p className="text-xs text-gray-500 uppercase tracking-wide mb-3 font-medium">Documentation</p>
+            {sections.map((s) => (
+              <button
+                key={s.id}
+                onClick={() => setActive(s.id)}
+                className={`block w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
+                  active === s.id ? 'bg-blue-600/20 text-blue-400' : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                {s.label}
+              </button>
             ))}
-          </ul>
+          </div>
+        </aside>
+
+        {/* Mobile tabs */}
+        <div className="md:hidden flex gap-2 overflow-x-auto pb-4 -mt-2 mb-4 w-full">
+          {sections.map((s) => (
+            <button
+              key={s.id}
+              onClick={() => setActive(s.id)}
+              className={`px-3 py-1.5 rounded-lg text-sm whitespace-nowrap ${
+                active === s.id ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400'
+              }`}
+            >
+              {s.label}
+            </button>
+          ))}
         </div>
 
-        {/* Quick Start */}
-        <section id="quick-start" className="mb-16 scroll-mt-20">
-          <h2 className="text-2xl font-bold mb-6 pb-2 border-b border-gray-800">Quick Start</h2>
-          <div className="space-y-4 text-gray-300 leading-relaxed">
-            <p>Get up and running in under 5 minutes.</p>
-            
-            <h3 className="text-lg font-semibold text-white mt-6">1. Create an account</h3>
-            <p>Sign up at <span className="text-blue-400">platform.3mate.io</span> using Google or email. You'll get access to the dashboard where you can manage API keys and monitor usage.</p>
-
-            <h3 className="text-lg font-semibold text-white mt-6">2. Fund your Tunnel</h3>
-            <p>Connect your Sui wallet and deposit USDC into a payment Tunnel. This creates an on-chain escrow that will fund your API usage.</p>
-
-            <h3 className="text-lg font-semibold text-white mt-6">3. Get your API key</h3>
-            <p>Generate an API key from the dashboard. Use it as your bearer token in API requests.</p>
-
-            <h3 className="text-lg font-semibold text-white mt-6">4. Make your first request</h3>
-            <Code>{`curl -X POST https://platform.3mate.io/v1/messages \\
-  -H "Content-Type: application/json" \\
-  -H "x-api-key: YOUR_API_KEY" \\
-  -H "anthropic-version: 2023-06-01" \\
-  -d '{
-    "model": "claude-sonnet-4-20250514",
-    "max_tokens": 1024,
-    "messages": [
-      {"role": "user", "content": "Hello, world!"}
-    ]
-  }'`}</Code>
-            <p className="text-sm text-gray-400">The API is fully compatible with the Anthropic Messages API. You can use any Anthropic SDK by changing the base URL.</p>
-          </div>
-        </section>
-
-        {/* API Reference */}
-        <section id="api-reference" className="mb-16 scroll-mt-20">
-          <h2 className="text-2xl font-bold mb-6 pb-2 border-b border-gray-800">API Reference</h2>
-
-          <div className="space-y-10">
-            <div>
-              <Endpoint method="POST" path="/v1/messages" />
-              <p className="text-gray-300 mt-3 mb-4">Create a message. Fully compatible with the <a href="https://docs.anthropic.com/en/api/messages" target="_blank" rel="noopener" className="text-blue-400 hover:underline">Anthropic Messages API</a>.</p>
-              <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">Headers</h4>
-              <ParamTable rows={[
-                ['x-api-key', 'string', 'Required. Your 3mate API key.'],
-                ['anthropic-version', 'string', 'Required. API version (e.g. 2023-06-01).'],
-                ['Content-Type', 'string', 'application/json'],
-              ]} />
-              <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mt-4 mb-2">Body</h4>
-              <p className="text-sm text-gray-400 mb-3">Same schema as the Anthropic Messages API. Key fields:</p>
-              <ParamTable rows={[
-                ['model', 'string', 'Model ID (e.g. claude-sonnet-4-20250514)'],
-                ['messages', 'array', 'Array of message objects with role and content'],
-                ['max_tokens', 'integer', 'Maximum tokens to generate'],
-                ['stream', 'boolean', 'Enable streaming responses (SSE)'],
-              ]} />
-              <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mt-4 mb-2">Response</h4>
-              <Code>{`{
-  "id": "msg_01XFDUDYJgAACzvnptvVoYEL",
-  "type": "message",
-  "role": "assistant",
-  "content": [
-    {
-      "type": "text",
-      "text": "Hello! How can I help you today?"
-    }
-  ],
-  "model": "claude-sonnet-4-20250514",
-  "usage": {
-    "input_tokens": 12,
-    "output_tokens": 10
-  }
-}`}</Code>
-            </div>
-
-            <div>
-              <Endpoint method="GET" path="/api/config" />
-              <p className="text-gray-300 mt-3 mb-4">Returns the platform configuration, including the Tunnel contract address and supported tokens.</p>
-              <Code>{`{
-  "tunnel_package": "0x0a906dc87bd...970602",
-  "network": "testnet",
-  "usdc_type": "0x...::usdc::USDC",
-  "price_per_request": "100000",
-  "provider_address": "0x..."
-}`}</Code>
-            </div>
-
-            <div>
-              <Endpoint method="POST" path="/api/tunnel/create" />
-              <p className="text-gray-300 mt-3 mb-4">Get the transaction bytes to create a new payment Tunnel with an initial USDC deposit.</p>
-              <ParamTable rows={[
-                ['amount', 'string', 'Deposit amount in USDC base units (6 decimals)'],
-                ['user_address', 'string', 'Your Sui wallet address'],
-              ]} />
-            </div>
-
-            <div>
-              <Endpoint method="POST" path="/api/tunnel/topup" />
-              <p className="text-gray-300 mt-3 mb-4">Get transaction bytes to add more USDC to an existing Tunnel.</p>
-              <ParamTable rows={[
-                ['tunnel_id', 'string', 'Object ID of your Tunnel'],
-                ['amount', 'string', 'Additional USDC amount to deposit'],
-              ]} />
-            </div>
-          </div>
-        </section>
-
-        {/* Payment Flow */}
-        <section id="payment-flow" className="mb-16 scroll-mt-20">
-          <h2 className="text-2xl font-bold mb-6 pb-2 border-b border-gray-800">Payment Flow (Tunnel)</h2>
-          <div className="space-y-4 text-gray-300 leading-relaxed">
-            <p>
-              The Tunnel is a payment channel between a user and a service provider, implemented as a Sui Move object.
-              It holds USDC in escrow and tracks cumulative usage via signed vouchers.
-            </p>
-
-            <div className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-6 my-6">
-              <h4 className="font-semibold mb-4 text-white">Flow Diagram</h4>
-              <div className="font-mono text-sm text-gray-400 space-y-1">
-                <p>User ──deposit USDC──▶ <span className="text-emerald-400">Tunnel (on-chain escrow)</span></p>
-                <p>User ──signed request──▶ <span className="text-blue-400">Service Provider (off-chain)</span></p>
-                <p>User ◀──API response──── <span className="text-blue-400">Service Provider</span></p>
-                <p className="text-gray-600">  ... repeat N times, no gas fees ...</p>
-                <p>Provider ──submit vouchers──▶ <span className="text-emerald-400">Tunnel (settle on-chain)</span></p>
-                <p>Provider ◀──USDC payout──── <span className="text-emerald-400">Tunnel</span></p>
-              </div>
-            </div>
-
-            <h3 className="text-lg font-semibold text-white mt-6">Key Concepts</h3>
-            <ul className="list-disc list-inside space-y-2 text-gray-400">
-              <li><strong className="text-gray-200">Tunnel Object:</strong> An on-chain escrow holding USDC. Created by the user, specifying the provider.</li>
-              <li><strong className="text-gray-200">Voucher:</strong> A signed message containing the cumulative payment amount. Each new voucher supersedes the previous one.</li>
-              <li><strong className="text-gray-200">Settlement:</strong> The provider calls the smart contract with the latest voucher to withdraw earned USDC.</li>
-              <li><strong className="text-gray-200">Withdrawal:</strong> Users can withdraw remaining USDC from the Tunnel after the provider has settled.</li>
-            </ul>
-
-            <h3 className="text-lg font-semibold text-white mt-6">Why Tunnel?</h3>
-            <p className="text-gray-400">
-              Traditional per-request on-chain payments require a transaction (and gas) for every API call. 
-              Tunnel batches payments: only the deposit and settlement are on-chain. 
-              Everything in between uses cryptographic signatures, making individual requests instant and gas-free.
-            </p>
-          </div>
-        </section>
-
-        {/* For Service Providers */}
-        <section id="service-providers" className="mb-16 scroll-mt-20">
-          <h2 className="text-2xl font-bold mb-6 pb-2 border-b border-gray-800">For Service Providers</h2>
-          <div className="space-y-4 text-gray-300 leading-relaxed">
-            <p>
-              3mate isn't just for LLMs. Any developer can integrate Tunnel payments to monetize their API service.
-            </p>
-
-            <h3 className="text-lg font-semibold text-white mt-6">How to Integrate</h3>
-            <ol className="list-decimal list-inside space-y-3 text-gray-400">
-              <li><strong className="text-gray-200">Register as a provider</strong> on the 3mate platform. You'll receive a provider address on Sui.</li>
-              <li><strong className="text-gray-200">Set your pricing</strong> per request. This is encoded in the Tunnel contract configuration.</li>
-              <li><strong className="text-gray-200">Verify vouchers</strong> in your API middleware. Each incoming request includes a signed voucher. Validate the signature and cumulative amount before serving.</li>
-              <li><strong className="text-gray-200">Settle periodically</strong> by submitting the latest voucher to the Tunnel contract to collect your USDC earnings.</li>
-            </ol>
-
-            <h3 className="text-lg font-semibold text-white mt-6">Example: LLM Proxy</h3>
-            <p className="text-gray-400">
-              LuLuAI is a reference implementation: it wraps the Anthropic API, adds Tunnel payment verification, 
-              and charges 0.1 USDC per request. You can build similar proxies for OpenAI, Replicate, or any API.
-            </p>
-
-            <h3 className="text-lg font-semibold text-white mt-6">SDK (Coming Soon)</h3>
-            <p className="text-gray-400">
-              We're building a TypeScript SDK that handles voucher verification and settlement, 
-              so you can add Tunnel payments to any Express/Fastify server with a few lines of code.
-            </p>
-          </div>
-        </section>
-
-        {/* Smart Contracts */}
-        <section id="smart-contracts" className="mb-16 scroll-mt-20">
-          <h2 className="text-2xl font-bold mb-6 pb-2 border-b border-gray-800">Smart Contracts</h2>
-          <div className="space-y-4 text-gray-300 leading-relaxed">
-            <p>The Tunnel payment system is implemented as a Sui Move package.</p>
-
-            <div className="bg-gray-800 border border-gray-700 rounded-xl p-5 my-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Package ID (Testnet)</span>
-                <a
-                  href="https://suiscan.xyz/testnet/object/0x0a906dc87bd311f0f00b2494308cdbfdbb6a6bad61bc00a0d79f897420970602"
-                  target="_blank"
-                  rel="noopener"
-                  className="text-xs text-blue-400 hover:underline"
-                >
-                  View on SuiScan ↗
-                </a>
-              </div>
-              <code className="text-sm text-emerald-400 break-all">
-                0x0a906dc87bd311f0f00b2494308cdbfdbb6a6bad61bc00a0d79f897420970602
-              </code>
-            </div>
-
-            <h3 className="text-lg font-semibold text-white mt-6">Key Modules</h3>
-            <ul className="list-disc list-inside space-y-2 text-gray-400">
-              <li><strong className="text-gray-200">tunnel::create</strong> - Create a new payment Tunnel with initial deposit</li>
-              <li><strong className="text-gray-200">tunnel::topup</strong> - Add funds to an existing Tunnel</li>
-              <li><strong className="text-gray-200">tunnel::settle</strong> - Provider submits voucher to claim earned USDC</li>
-              <li><strong className="text-gray-200">tunnel::withdraw</strong> - User withdraws remaining balance</li>
-              <li><strong className="text-gray-200">tunnel::close</strong> - Close a Tunnel and return remaining funds</li>
-            </ul>
-
-            <h3 className="text-lg font-semibold text-white mt-6">Network</h3>
-            <p className="text-gray-400">
-              Currently deployed on <strong className="text-gray-200">Sui Testnet</strong>. 
-              Mainnet deployment is planned after audit completion.
-            </p>
-          </div>
-        </section>
-
-        {/* Back to top */}
-        <div className="text-center pt-8 border-t border-gray-800">
-          <button onClick={onBack} className="text-sm text-gray-500 hover:text-gray-300 transition-colors">
-            ← Back to Home
-          </button>
-        </div>
+        {/* Content */}
+        <main className="flex-1 min-w-0">
+          {active === 'quickstart' && <QuickStart />}
+          {active === 'api' && <ApiReference />}
+          {active === 'payment' && <PaymentFlow />}
+          {active === 'providers' && <ForProviders />}
+          {active === 'contracts' && <Contracts />}
+        </main>
       </div>
     </div>
   )
 }
 
-/* Helper Components */
-
-function Code({ children }: { children: string }) {
+function Code({ children, lang }: { children: string; lang?: string }) {
   return (
-    <pre className="bg-gray-950 border border-gray-800 rounded-lg p-4 overflow-x-auto text-sm">
-      <code className="text-gray-300">{children}</code>
+    <pre className="bg-gray-800 border border-gray-700 rounded-lg p-4 text-sm overflow-x-auto my-4">
+      <code>{children}</code>
     </pre>
   )
 }
 
-function Endpoint({ method, path }: { method: string; path: string }) {
-  const color = method === 'GET' ? 'text-emerald-400 bg-emerald-400/10' : 'text-blue-400 bg-blue-400/10'
+function H2({ children }: { children: React.ReactNode }) {
+  return <h2 className="text-2xl font-bold mt-8 mb-4">{children}</h2>
+}
+
+function H3({ children }: { children: React.ReactNode }) {
+  return <h3 className="text-lg font-semibold mt-6 mb-3">{children}</h3>
+}
+
+function P({ children }: { children: React.ReactNode }) {
+  return <p className="text-gray-300 leading-relaxed mb-4">{children}</p>
+}
+
+function QuickStart() {
   return (
-    <div className="flex items-center gap-3">
-      <span className={`px-2 py-1 rounded text-xs font-bold font-mono ${color}`}>{method}</span>
-      <code className="text-sm font-mono text-gray-200">{path}</code>
+    <div>
+      <h1 className="text-3xl font-bold mb-2">Quick Start</h1>
+      <p className="text-gray-400 mb-8">Get up and running in under 5 minutes.</p>
+
+      <H2>1. Create an Account</H2>
+      <P>Sign in with Google or email at <a href="https://platform.3mate.io" className="text-blue-400 hover:underline">platform.3mate.io</a>.</P>
+
+      <H2>2. Deposit USDC</H2>
+      <P>
+        Connect your Sui wallet in the Balance tab. Open a Tunnel (payment channel) and deposit USDC.
+        This creates an on-chain escrow that the platform draws from as you make API calls.
+      </P>
+
+      <H2>3. Generate an API Key</H2>
+      <P>Go to the API Keys tab and create a new key. Copy it somewhere safe.</P>
+
+      <H2>4. Make Your First Request</H2>
+      <Code>{`curl https://platform.3mate.io/v1/messages \\
+  -H "x-api-key: YOUR_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -H "anthropic-version: 2023-06-01" \\
+  -d '{
+    "model": "claude-sonnet-4-20250514",
+    "max_tokens": 256,
+    "messages": [
+      {"role": "user", "content": "Hello, world!"}
+    ]
+  }'`}</Code>
+      <P>That's it. Each request costs 0.1 USDC, deducted from your Tunnel balance.</P>
+
+      <H2>Using with Anthropic SDKs</H2>
+      <H3>Python</H3>
+      <Code>{`import anthropic
+
+client = anthropic.Anthropic(
+    api_key="YOUR_API_KEY",
+    base_url="https://platform.3mate.io"
+)
+
+message = client.messages.create(
+    model="claude-sonnet-4-20250514",
+    max_tokens=256,
+    messages=[{"role": "user", "content": "Hello!"}]
+)
+print(message.content[0].text)`}</Code>
+
+      <H3>TypeScript</H3>
+      <Code>{`import Anthropic from '@anthropic-ai/sdk';
+
+const client = new Anthropic({
+  apiKey: 'YOUR_API_KEY',
+  baseURL: 'https://platform.3mate.io',
+});
+
+const message = await client.messages.create({
+  model: 'claude-sonnet-4-20250514',
+  max_tokens: 256,
+  messages: [{ role: 'user', content: 'Hello!' }],
+});
+console.log(message.content[0].text);`}</Code>
     </div>
   )
 }
 
-function ParamTable({ rows }: { rows: [string, string, string][] }) {
+function ApiReference() {
   return (
-    <div className="border border-gray-800 rounded-lg overflow-hidden text-sm">
-      {rows.map(([name, type, desc], i) => (
-        <div key={i} className={`flex gap-4 px-4 py-2.5 ${i > 0 ? 'border-t border-gray-800' : ''}`}>
-          <code className="text-emerald-400 font-mono w-40 shrink-0">{name}</code>
-          <span className="text-gray-500 w-16 shrink-0">{type}</span>
-          <span className="text-gray-400">{desc}</span>
-        </div>
-      ))}
+    <div>
+      <h1 className="text-3xl font-bold mb-2">API Reference</h1>
+      <p className="text-gray-400 mb-8">Anthropic-compatible Messages API.</p>
+
+      <H2>POST /v1/messages</H2>
+      <P>
+        Fully compatible with the Anthropic Messages API. Send the same request body,
+        get the same response format. The only difference: authentication uses <code className="bg-gray-800 px-1.5 py-0.5 rounded text-sm">x-api-key</code> with your 3mate API key.
+      </P>
+
+      <H3>Headers</H3>
+      <div className="bg-gray-800 border border-gray-700 rounded-lg overflow-hidden my-4">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-gray-700">
+              <th className="text-left p-3 text-gray-400">Header</th>
+              <th className="text-left p-3 text-gray-400">Required</th>
+              <th className="text-left p-3 text-gray-400">Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr className="border-b border-gray-700">
+              <td className="p-3 font-mono text-blue-400">x-api-key</td>
+              <td className="p-3">Yes</td>
+              <td className="p-3 text-gray-300">Your 3mate API key</td>
+            </tr>
+            <tr className="border-b border-gray-700">
+              <td className="p-3 font-mono text-blue-400">Content-Type</td>
+              <td className="p-3">Yes</td>
+              <td className="p-3 text-gray-300">application/json</td>
+            </tr>
+            <tr>
+              <td className="p-3 font-mono text-blue-400">anthropic-version</td>
+              <td className="p-3">Optional</td>
+              <td className="p-3 text-gray-300">API version (e.g. 2023-06-01)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <H3>Request Body</H3>
+      <Code>{`{
+  "model": "claude-sonnet-4-20250514",
+  "max_tokens": 1024,
+  "messages": [
+    {
+      "role": "user",
+      "content": "Explain quantum computing in simple terms."
+    }
+  ],
+  "system": "You are a helpful assistant.",  // optional
+  "temperature": 0.7,                        // optional
+  "stream": false                             // optional
+}`}</Code>
+
+      <H3>Response</H3>
+      <Code>{`{
+  "id": "msg_...",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "text",
+      "text": "Quantum computing uses..."
+    }
+  ],
+  "model": "claude-sonnet-4-20250514",
+  "stop_reason": "end_turn",
+  "usage": {
+    "input_tokens": 12,
+    "output_tokens": 84
+  }
+}`}</Code>
+
+      <H3>Streaming</H3>
+      <P>
+        Set <code className="bg-gray-800 px-1.5 py-0.5 rounded text-sm">"stream": true</code> to receive Server-Sent Events.
+        The stream format matches Anthropic's SSE protocol exactly.
+      </P>
+
+      <H3>Error Codes</H3>
+      <div className="bg-gray-800 border border-gray-700 rounded-lg overflow-hidden my-4">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-gray-700">
+              <th className="text-left p-3 text-gray-400">Status</th>
+              <th className="text-left p-3 text-gray-400">Meaning</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[
+              ['401', 'Invalid or missing API key'],
+              ['402', 'Insufficient Tunnel balance'],
+              ['429', 'Rate limited'],
+              ['500', 'Internal server error'],
+            ].map(([code, desc], i) => (
+              <tr key={i} className={i < 3 ? 'border-b border-gray-700' : ''}>
+                <td className="p-3 font-mono text-yellow-400">{code}</td>
+                <td className="p-3 text-gray-300">{desc}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+function PaymentFlow() {
+  return (
+    <div>
+      <h1 className="text-3xl font-bold mb-2">Payment Flow</h1>
+      <p className="text-gray-400 mb-8">How Tunnel payments work under the hood.</p>
+
+      <H2>Overview</H2>
+      <P>
+        3mate uses "Tunnel" payment channels built on Sui. A Tunnel is an on-chain escrow 
+        between a user and a service provider. Funds flow one direction: from user to provider, 
+        request by request.
+      </P>
+
+      <H2>Lifecycle</H2>
+      <div className="space-y-4 my-6">
+        {[
+          {
+            title: 'Open Tunnel',
+            desc: 'User calls the smart contract to create a Tunnel, depositing USDC into escrow. The Tunnel is tied to a specific provider.',
+          },
+          {
+            title: 'Use Service',
+            desc: 'Each API request deducts 0.1 USDC from the off-chain balance. The platform tracks cumulative spending.',
+          },
+          {
+            title: 'Top Up',
+            desc: 'Users can deposit more USDC into an existing Tunnel at any time without creating a new one.',
+          },
+          {
+            title: 'Close / Settle',
+            desc: 'Either party can close the Tunnel. The provider receives earned USDC; remaining balance returns to the user.',
+          },
+        ].map((step, i) => (
+          <div key={i} className="flex gap-4">
+            <div className="w-8 h-8 rounded-full bg-blue-600/20 text-blue-400 flex items-center justify-center flex-shrink-0 text-sm font-bold mt-0.5">
+              {i + 1}
+            </div>
+            <div>
+              <p className="font-semibold mb-1">{step.title}</p>
+              <p className="text-gray-400 text-sm leading-relaxed">{step.desc}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <H2>Security Model</H2>
+      <P>
+        Funds are held by the Sui smart contract, not by 3mate. The contract enforces that:
+      </P>
+      <ul className="list-disc list-inside text-gray-300 space-y-2 mb-4 ml-4">
+        <li>Only the designated provider can claim spent funds</li>
+        <li>Users can always reclaim unspent balance</li>
+        <li>Settlement requires a valid signed state from both parties</li>
+      </ul>
+
+      <H2>Balance Tracking</H2>
+      <P>
+        The platform maintains an off-chain balance that mirrors on-chain state. 
+        Each API request atomically decrements this balance. When a Tunnel is closed, 
+        the final off-chain balance is submitted on-chain for settlement.
+      </P>
+    </div>
+  )
+}
+
+function ForProviders() {
+  return (
+    <div>
+      <h1 className="text-3xl font-bold mb-2">For Providers</h1>
+      <p className="text-gray-400 mb-8">Integrate Tunnel payments into your own service.</p>
+
+      <H2>What is 3mate?</H2>
+      <P>
+        3mate is not just one AI service. It's a platform that any developer can use to accept
+        Tunnel-based crypto payments for their API. LuLuAI (our Claude proxy) is the first service 
+        built on 3mate, but you can build your own.
+      </P>
+
+      <H2>Integration Overview</H2>
+      <P>As a provider, you:</P>
+      <ol className="list-decimal list-inside text-gray-300 space-y-2 mb-4 ml-4">
+        <li>Register your service on the 3mate platform</li>
+        <li>Set your per-request price</li>
+        <li>Accept API calls from users who have open Tunnels with you</li>
+        <li>Settle Tunnels to claim your earnings</li>
+      </ol>
+
+      <H2>Why Tunnel Payments?</H2>
+      <div className="grid gap-4 my-6">
+        {[
+          { title: 'No payment infrastructure', desc: 'No Stripe, no invoicing, no chargebacks. The blockchain handles everything.' },
+          { title: 'Global by default', desc: 'Accept payments from anyone with a Sui wallet. No banking requirements.' },
+          { title: 'Instant settlement', desc: 'Close a Tunnel and receive USDC immediately. No 30-day net terms.' },
+          { title: 'Transparent', desc: 'All payment state is on-chain. Users can verify their balance at any time.' },
+        ].map((item, i) => (
+          <div key={i} className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+            <p className="font-semibold mb-1">{item.title}</p>
+            <p className="text-gray-400 text-sm">{item.desc}</p>
+          </div>
+        ))}
+      </div>
+
+      <H2>Getting Started</H2>
+      <P>
+        Provider integration is coming soon. If you're interested in building on 3mate,
+        reach out on <a href="https://github.com/nicemateOo" className="text-blue-400 hover:underline">GitHub</a> or 
+        check the Contracts section for smart contract details.
+      </P>
+    </div>
+  )
+}
+
+function Contracts() {
+  return (
+    <div>
+      <h1 className="text-3xl font-bold mb-2">Contracts</h1>
+      <p className="text-gray-400 mb-8">On-chain smart contract details.</p>
+
+      <H2>Tunnel Payment Contract</H2>
+      <P>The Tunnel payment system is deployed on Sui Testnet.</P>
+
+      <H3>Package ID</H3>
+      <div className="bg-gray-800 border border-gray-700 rounded-lg p-4 my-4 font-mono text-sm break-all">
+        <a
+          href={`https://suiscan.xyz/testnet/object/${PACKAGE_ID}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-400 hover:underline"
+        >
+          {PACKAGE_ID}
+        </a>
+      </div>
+      <P>Network: <span className="text-yellow-400 font-medium">Sui Testnet</span></P>
+
+      <H2>Key Functions</H2>
+      <div className="space-y-4 my-4">
+        {[
+          {
+            name: 'open_tunnel',
+            desc: 'Create a new payment channel between user and provider, depositing initial USDC.',
+          },
+          {
+            name: 'top_up',
+            desc: 'Add more USDC to an existing Tunnel.',
+          },
+          {
+            name: 'close_tunnel',
+            desc: 'Close the Tunnel. Provider receives earned amount; user gets remainder.',
+          },
+        ].map((fn, i) => (
+          <div key={i} className="bg-gray-800 border border-gray-700 rounded-lg p-4">
+            <code className="text-green-400 font-mono">{fn.name}</code>
+            <p className="text-gray-400 text-sm mt-1">{fn.desc}</p>
+          </div>
+        ))}
+      </div>
+
+      <H2>USDC on Testnet</H2>
+      <P>
+        The contract uses testnet USDC. You can obtain test USDC from the Sui testnet faucet
+        or through the platform's test token distribution.
+      </P>
+
+      <H2>Source Code</H2>
+      <P>
+        The smart contract source code is available on{' '}
+        <a href="https://github.com/nicemateOo" className="text-blue-400 hover:underline">GitHub</a>.
+        Contributions and audits are welcome.
+      </P>
     </div>
   )
 }
